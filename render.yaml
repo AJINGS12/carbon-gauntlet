@@ -1,0 +1,26 @@
+# Render blueprint for the API (free tier). Frontend deploys separately on Vercel.
+services:
+  - type: web
+    name: carbon-gauntlet-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build -w apps/api
+    startCommand: npm start -w apps/api
+    healthCheckPath: /health
+    envVars:
+      - key: DEMO_MODE
+        value: "true"
+      - key: CHAIN_MODE
+        value: mock
+      - key: DATABASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPERATOR_PRIVATE_KEY
+        sync: false
+      - key: REGISTRY_PROTECTED_ADDRESS
+        sync: false
+      - key: REGISTRY_UNPROTECTED_ADDRESS
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false

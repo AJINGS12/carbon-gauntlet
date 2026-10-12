@@ -1,0 +1,22 @@
+{
+  "name": "carbon-gauntlet",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI-powered carbon-credit integrity protocol, stress-tested by adversarial AI agents.",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "contracts"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
+    "build": "npm run build -w apps/web && npm run build -w apps/api",
+    "contracts:compile": "npm run compile -w contracts",
+    "contracts:test": "npm run test -w contracts",
+    "contracts:deploy": "npm run deploy -w contracts"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

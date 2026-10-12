@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+
+# Prisma
+apps/api/prisma/*.db
+
+.DS_Store
+.vercel
+*.tsbuildinfo

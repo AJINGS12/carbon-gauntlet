@@ -1,0 +1,525 @@
+{
+  "_note": "SYNTHETIC DATA for an experimental prototype. All projects, places, figures and developers are fictional. 'planted' marks deliberate frauds for testing and is never shown to agents or the verifier.",
+  "projects": [
+    {
+      "projectId": "forest-tr-001",
+      "developerId": "honest-dev",
+      "hostCountry": "TR",
+      "methodology": "reforestation",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              30.68,
+              36.86
+            ],
+            [
+              30.69,
+              36.86
+            ],
+            [
+              30.69,
+              36.87
+            ],
+            [
+              30.68,
+              36.87
+            ],
+            [
+              30.68,
+              36.86
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 1000,
+      "claimedReduction": 300,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Antalya hillside replanting of Turkish red pine across degraded slopes. Survival counts in March showed 87 percent of saplings alive. Canopy cover rose from 12 to 19 percent per drone survey."
+        }
+      ]
+    },
+    {
+      "projectId": "forest-tr-005",
+      "developerId": "honest-dev",
+      "hostCountry": "TR",
+      "methodology": "reforestation",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              30.7,
+              36.86
+            ],
+            [
+              30.71,
+              36.86
+            ],
+            [
+              30.71,
+              36.87
+            ],
+            [
+              30.7,
+              36.87
+            ],
+            [
+              30.7,
+              36.86
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 900,
+      "claimedReduction": 250,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Riverside oak and plane tree corridor beside the Aksu stream. Field team tagged 4,100 trees; spring flood damaged one plot which was replanted in May. Soil moisture logs attached."
+        }
+      ]
+    },
+    {
+      "projectId": "cookstove-ke-001",
+      "developerId": "honest-dev",
+      "hostCountry": "KE",
+      "methodology": "cookstoves",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              36.8,
+              -1.3
+            ],
+            [
+              36.809999999999995,
+              -1.3
+            ],
+            [
+              36.809999999999995,
+              -1.29
+            ],
+            [
+              36.8,
+              -1.29
+            ],
+            [
+              36.8,
+              -1.3
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 400,
+      "claimedReduction": 150,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Distribution of 2,300 improved clay stoves to households in Kibera. Kitchen surveys recorded firewood use falling from 6.1 to 3.4 kilograms per day. Usage checked by spot visits."
+        }
+      ]
+    },
+    {
+      "projectId": "solar-ke-002",
+      "developerId": "green-coop",
+      "hostCountry": "KE",
+      "methodology": "solar",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              37.0,
+              -1.1
+            ],
+            [
+              37.01,
+              -1.1
+            ],
+            [
+              37.01,
+              -1.09
+            ],
+            [
+              37.0,
+              -1.09
+            ],
+            [
+              37.0,
+              -1.1
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 2000,
+      "claimedReduction": 800,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Rooftop solar for 14 schools in Thika replacing diesel generators. Inverter data shows 610 megawatt hours generated in the period; diesel purchase receipts dropped to near zero."
+        }
+      ]
+    },
+    {
+      "projectId": "methane-br-001",
+      "developerId": "green-coop",
+      "hostCountry": "BR",
+      "methodology": "methane-capture",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -47.9,
+              -15.8
+            ],
+            [
+              -47.89,
+              -15.8
+            ],
+            [
+              -47.89,
+              -15.790000000000001
+            ],
+            [
+              -47.9,
+              -15.790000000000001
+            ],
+            [
+              -47.9,
+              -15.8
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 3000,
+      "claimedReduction": 1500,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Landfill gas capture at a municipal site near Brasilia. Flare meter readings logged hourly; methane destruction verified against calibrated flow sensor with quarterly maintenance records."
+        }
+      ]
+    },
+    {
+      "projectId": "forest-br-002",
+      "developerId": "green-coop",
+      "hostCountry": "BR",
+      "methodology": "reforestation",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -60.0,
+              -3.1
+            ],
+            [
+              -59.99,
+              -3.1
+            ],
+            [
+              -59.99,
+              -3.0900000000000003
+            ],
+            [
+              -60.0,
+              -3.0900000000000003
+            ],
+            [
+              -60.0,
+              -3.1
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 1200,
+      "claimedReduction": 350,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Agroforestry restoration on cleared pasture outside Manaus mixing acai, cacao and native hardwoods. Plot inventories found 1,450 stems per hectare; fire breaks maintained through the dry season."
+        }
+      ]
+    },
+    {
+      "projectId": "solar-tr-003",
+      "developerId": "honest-dev",
+      "hostCountry": "TR",
+      "methodology": "solar",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              32.8,
+              39.9
+            ],
+            [
+              32.809999999999995,
+              39.9
+            ],
+            [
+              32.809999999999995,
+              39.91
+            ],
+            [
+              32.8,
+              39.91
+            ],
+            [
+              32.8,
+              39.9
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 1500,
+      "claimedReduction": 700,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Ground-mounted array on an industrial roof cluster in Ankara supplying a textile mill. Grid export meter and utility invoices confirm displaced coal-heavy grid electricity for six months."
+        }
+      ]
+    },
+    {
+      "projectId": "cookstove-br-003",
+      "developerId": "green-coop",
+      "hostCountry": "BR",
+      "methodology": "cookstoves",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -38.5,
+              -3.7
+            ],
+            [
+              -38.49,
+              -3.7
+            ],
+            [
+              -38.49,
+              -3.6900000000000004
+            ],
+            [
+              -38.5,
+              -3.6900000000000004
+            ],
+            [
+              -38.5,
+              -3.7
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 300,
+      "claimedReduction": 120,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Efficient charcoal stoves provided to 900 families in Fortaleza through a women-led cooperative. Charcoal sales ledgers and monthly household diaries show consumption roughly halved."
+        }
+      ]
+    },
+    {
+      "projectId": "forest-tr-002",
+      "developerId": "opportunist-dev",
+      "hostCountry": "TR",
+      "methodology": "reforestation",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              30.685,
+              36.862
+            ],
+            [
+              30.695,
+              36.862
+            ],
+            [
+              30.695,
+              36.872
+            ],
+            [
+              30.685,
+              36.872
+            ],
+            [
+              30.685,
+              36.862
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 1000,
+      "claimedReduction": 300,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Hillside reforestation near Antalya with pine saplings on eroded land. Drone survey recorded canopy growth and high sapling survival after the winter season. Planting crews logged daily work."
+        }
+      ],
+      "planted": "OVERLAPPING_PROJECT: boundary overlaps forest-tr-001 in the same period"
+    },
+    {
+      "projectId": "cookstove-ke-004",
+      "developerId": "opportunist-dev",
+      "hostCountry": "KE",
+      "methodology": "cookstoves",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              36.9,
+              -1.25
+            ],
+            [
+              36.91,
+              -1.25
+            ],
+            [
+              36.91,
+              -1.24
+            ],
+            [
+              36.9,
+              -1.24
+            ],
+            [
+              36.9,
+              -1.25
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 400,
+      "claimedReduction": 150,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Distribution of 2,300 improved clay stoves to households in Kibera. Kitchen surveys recorded firewood use falling from 6.1 to 3.4 kilograms per day. Usage checked by spot visits."
+        }
+      ],
+      "planted": "REUSED_EVIDENCE: identical report to cookstove-ke-001"
+    },
+    {
+      "projectId": "forest-br-004",
+      "developerId": "opportunist-dev",
+      "hostCountry": "BR",
+      "methodology": "reforestation",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -60.2,
+              -3.2
+            ],
+            [
+              -60.190000000000005,
+              -3.2
+            ],
+            [
+              -60.190000000000005,
+              -3.1900000000000004
+            ],
+            [
+              -60.2,
+              -3.1900000000000004
+            ],
+            [
+              -60.2,
+              -3.2
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 1200,
+      "claimedReduction": 2400,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Large scale rainforest regeneration on former soy fields. Satellite imagery shows strong green-up across the whole project area. Claimed sequestration based on mature forest uptake rates."
+        }
+      ],
+      "planted": "INFLATED_BASELINE: about 20 tCO2e/ha claimed for six months of reforestation"
+    },
+    {
+      "projectId": "solar-br-005",
+      "developerId": "broker",
+      "hostCountry": "BR",
+      "methodology": "solar",
+      "boundary": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -46.6,
+              -23.5
+            ],
+            [
+              -46.59,
+              -23.5
+            ],
+            [
+              -46.59,
+              -23.49
+            ],
+            [
+              -46.6,
+              -23.49
+            ],
+            [
+              -46.6,
+              -23.5
+            ]
+          ]
+        ]
+      },
+      "monitoringStart": "2026-01-01",
+      "monitoringEnd": "2026-06-30",
+      "baselineEmissions": 2000,
+      "claimedReduction": 800,
+      "evidence": [
+        {
+          "type": "monitoring-report",
+          "text": "Rooftop solar for 14 schools in Sao Paulo replacing diesel generators. Inverter data shows 610 megawatt hours generated in the period; diesel purchase receipts dropped to near zero."
+        }
+      ],
+      "planted": "SIMILAR_EVIDENCE: look-alike of solar-ke-002 in another country"
+    }
+  ]
+}

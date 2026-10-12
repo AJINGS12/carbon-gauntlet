@@ -1,0 +1,25 @@
+:root {
+  --bg: #0f1412; --panel: #18201c; --ink: #e8efe9; --quiet: #9fb0a5;
+  --ok: #7fc8a0; --bad: #ff8a7a; --accent: #c8e86b;
+  font-family: Inter, system-ui, sans-serif; color: var(--ink); background: var(--bg);
+}
+body { margin: 0; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+h1 { margin: 0; font-size: 28px; }
+.tag { margin: 4px 0; color: var(--accent); }
+.label { margin: 0 0 24px; font-size: 13px; color: var(--quiet); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+button { background: var(--panel); color: var(--ink); border: 1px solid #33413a; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+button.on { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 20px; }
+.tile { background: var(--panel); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.tile span { font-size: 12px; color: var(--quiet); }
+.tile strong { font-size: 22px; }
+.feed { display: flex; flex-direction: column; gap: 6px; }
+.item { background: var(--panel); border-radius: 8px; padding: 8px 12px; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
+.round { color: var(--quiet); font-size: 12px; }
+.badge { font-size: 11px; text-transform: uppercase; color: var(--quiet); min-width: 76px; }
+.item.ok .badge { color: var(--ok); }
+.item.blocked .badge { color: var(--bad); }
+.item.blocked { border-left: 3px solid var(--bad); }
