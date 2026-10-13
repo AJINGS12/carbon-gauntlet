@@ -74,8 +74,16 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 
 | Done | Next |
 | --- | --- |
-| CreditRegistry contract + tests | Viem adapter for Base Sepolia |
-| Deterministic verifier tools + fallback | LLM tool-use loop for the verifier |
+| CreditRegistry contract + 7 tests | Viem adapter for Base Sepolia |
+| Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 13 tests ([docs/verifier.md](docs/verifier.md)) | |
 | Agent plans + replanning (deterministic) | LLM agent policies with fallback |
 | Engine, metrics, run anchoring, SSE API | Postgres persistence, ledger + results screens, map |
 | Minimal Arena | Agent cards, investigation trace view |
+
+## Tests
+
+```bash
+npm run contracts:test                            # contract rules, both modes
+npm test -w apps/api                              # verifier agent (scripted fake model)
+npm run eval:verifier -w apps/api                 # 12 seed projects scored: frauds caught, honest passed
+```

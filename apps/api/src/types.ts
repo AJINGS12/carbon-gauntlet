@@ -20,12 +20,23 @@ export const ProjectSchema = z.object({
 export type Project = z.infer<typeof ProjectSchema>;
 
 // ---------- Verifier attestation (section 6)
+export const RISK_FLAG_TYPES = [
+  "OVERLAPPING_PROJECT",
+  "REUSED_EVIDENCE",
+  "SIMILAR_EVIDENCE",
+  "INFLATED_BASELINE",
+  "INCONSISTENT_EVIDENCE",
+  "MANIPULATION_ATTEMPT", // evidence contains instructions aimed at the verifier
+] as const;
+
 export const RiskFlagSchema = z.object({
-  type: z.enum(["OVERLAPPING_PROJECT", "REUSED_EVIDENCE", "SIMILAR_EVIDENCE", "INFLATED_BASELINE", "INCONSISTENT_EVIDENCE"]),
+  type: z.enum(RISK_FLAG_TYPES),
   severity: z.enum(["LOW", "MEDIUM", "HIGH"]),
   relatedProjectId: z.string().optional(),
   detail: z.string(),
+  source: z.enum(["llm", "rule"]).optional(), // who raised it; rule flags come from deterministic guardrails
 });
+export type RiskFlag = z.infer<typeof RiskFlagSchema>;
 
 export const AttestationSchema = z
   .object({
@@ -36,6 +47,8 @@ export const AttestationSchema = z
     recommendedAction: z.enum(["ALLOW_MINTING", "REQUEST_EVIDENCE", "FREEZE_CREDIT_MINTING"]),
     approvedReduction: z.number().nonnegative(),
     explanation: z.string(),
+    engine: z.enum(["llm", "replay", "rules"]).optional(),   // how this attestation was produced
+    guardrailOverride: z.boolean().optional(),                // true when rules changed the LLM's verdict
   })
   // Hard rule: any HIGH flag means the project cannot be APPROVED, whatever the LLM says.
   .refine((a) => !(a.status === "APPROVED" && a.riskFlags.some((f) => f.severity === "HIGH")), {
@@ -66,7 +79,7 @@ export type AgentDecision = z.infer<typeof AgentDecisionSchema>;
 export type ArenaEvent =
   | { type: "round_started"; round: number; mode: Mode }
   | { type: "agent_decision"; decision: AgentDecision }
-  | { type: "verifier_step"; projectId: string; tool: string; reason: string; result: unknown }
+  | { type: "verifier_step"; projectId: string; step: number; tool: string; reason: string; result: unknown; source: "llm" | "replay" | "rules" }
   | { type: "attestation"; attestation: Attestation }
   | { type: "action_result"; agentId: string; action: string; accepted: boolean; reason?: string; txHash?: string }
   | { type: "round_finished"; round: number; metrics: Metrics };

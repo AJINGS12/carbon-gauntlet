@@ -52,8 +52,14 @@ export default function App() {
         const e = JSON.parse(part.replace(/^data: /, ""));
         if (e.type === "round_started") current = e.round;
         if (e.type === "agent_decision") push(current, `${e.decision.agentId}: ${e.decision.reason}`, "agent");
-        if (e.type === "verifier_step") push(current, `Verifier → ${e.tool}: ${e.reason}`, "verifier");
-        if (e.type === "attestation") push(current, `Verifier attests ${e.attestation.projectId}: ${e.attestation.status}. ${e.attestation.explanation}`, "verifier");
+        if (e.type === "verifier_step") {
+          const by = e.source === "llm" ? "AI" : e.source === "replay" ? "AI (recorded)" : "rules";
+          push(current, `Verifier [${by}] ${e.step ? `step ${e.step}: ` : ""}${e.tool} — ${e.reason}`, "verifier");
+        }
+        if (e.type === "attestation") {
+          const a = e.attestation;
+          push(current, `Verifier attests ${a.projectId}: ${a.status}${a.guardrailOverride ? " (guardrail override)" : ""}. ${a.explanation}`, "verifier");
+        }
         if (e.type === "action_result" && e.action !== "WAIT")
           push(current, `${e.agentId} ${e.action}: ${e.accepted ? "ACCEPTED" : `BLOCKED (${e.reason})`}`, e.accepted ? "ok" : "blocked");
         if (e.type === "round_finished") { setRound(e.round); setMetrics(e.metrics); }

@@ -4,7 +4,8 @@ import type { ArenaEvent, Metrics, Mode, Project } from "../types.js";
 import { AgentActionSchema, ProjectSchema } from "../types.js";
 import { createChain, type ChainAdapter, type TxResult } from "../chain/adapter.js";
 import { createAgents, decide, learn, type AgentState } from "../agents/policies.js";
-import { verifyProject } from "../verifier/agent.js";
+import { verifyProject, type HistoryEntry } from "../verifier/agent.js";
+import { createLlmClient, type LlmClient } from "../llm/client.js";
 import { sha256 } from "../verifier/tools.js";
 
 export const MAX_ROUNDS = 6;
@@ -30,6 +31,7 @@ export interface Run {
   chain: ChainAdapter;
   agents: AgentState[];
   attested: Project[];                         // projects the verifier has seen (overlap registry)
+  history: Map<string, HistoryEntry[]>;        // verifier decisions by developer
   batches: Map<number, { projectId: string; owner: string; quantity: number }>;
   log: { round: number; agentId: string; action: string; attack: boolean; scheme: string; accepted: boolean; reason?: string; quantity: number }[];
   schemeStart: Map<string, number>;
@@ -44,7 +46,7 @@ export const getRun = (id: string) => runs.get(id);
 /** Creates a run and seeds a small honest market: green-coop's projects verified and minted. */
 export async function createRun(mode: Mode): Promise<Run> {
   const chain = createChain(mode);
-  const run: Run = { id: randomUUID(), mode, round: 0, chain, agents: [], attested: [], batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0 };
+  const run: Run = { id: randomUUID(), mode, round: 0, chain, agents: [], attested: [], history: new Map(), batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0 };
   const minted: Record<string, number> = {};
   for (const id of ["solar-ke-002", "methane-br-001", "forest-br-002", "cookstove-br-003", "solar-tr-003"]) {
     const p = seedById.get(id)!;
@@ -52,6 +54,7 @@ export async function createRun(mode: Mode): Promise<Run> {
     await registerOnChain(chain, p, dev);
     await chain.submitAttestation(p.projectId, "APPROVED", p.claimedReduction, sha256(p.evidence[0].text));
     run.attested.push(p);
+    recordHistory(run, p.developerId, { projectId: p.projectId, status: "APPROVED", flags: [] });
     const r = await chain.mintCredits(p.projectId, dev, p.claimedReduction);
     run.batches.set(r.batchId!, { projectId: p.projectId, owner: dev, quantity: p.claimedReduction });
     run.totalMinted += p.claimedReduction;
@@ -65,6 +68,14 @@ export async function createRun(mode: Mode): Promise<Run> {
   runs.set(run.id, run);
   return run;
 }
+
+function recordHistory(run: Run, developerId: string, entry: HistoryEntry) {
+  run.history.set(developerId, [...(run.history.get(developerId) ?? []), entry]);
+}
+
+// One shared client; null when no API key is set (verifier then uses rule checks).
+let llm: LlmClient | null | undefined;
+const getLlm = () => (llm === undefined ? (llm = createLlmClient()) : llm);
 
 async function registerOnChain(chain: ChainAdapter, p: Project, developer: string) {
   return chain.registerProject({
@@ -120,9 +131,14 @@ async function execute(run: Run, agent: AgentState, step: ReturnType<typeof Agen
         run.attested.push(p);
         return chain.submitAttestation(p.projectId, "APPROVED", p.claimedReduction, sha256(p.evidence[0].text));
       }
-      const att = await verifyProject(p, run.attested, emit);
+      const att = await verifyProject(p, { registry: run.attested, history: (dev) => run.history.get(dev) ?? [] }, emit, {
+        llm: getLlm(),
+        demoMode: process.env.DEMO_MODE === "true",
+        record: process.env.RECORD_TRACES === "true",
+      });
       emit({ type: "attestation", attestation: att });
       run.attested.push(p);
+      recordHistory(run, p.developerId, { projectId: p.projectId, status: att.status, flags: att.riskFlags.map((f) => f.type) });
       const onChain = await chain.submitAttestation(p.projectId, att.status, att.approvedReduction, sha256(p.evidence[0].text));
       if (!onChain.accepted) return onChain;
       return att.status === "APPROVED" ? onChain : { accepted: false, reason: `Verifier ${att.status}: ${att.riskFlags.map((f) => f.type).join(", ")}`, txHash: onChain.txHash };

@@ -70,4 +70,20 @@ export function compareBaseline(project: Project) {
   return { hectares: +hectares.toFixed(1), claimedPerHa: +perHa.toFixed(2), plausibleRange: [lo, hi], withinRange: perHa >= lo && perHa <= hi };
 }
 
-export const verifierTools = { checkOverlap, findReusedEvidence, findSimilarEvidence, compareBaseline };
+// Phrases that address the verifier rather than describe the project. Evidence is written by the
+// applicant, so instructions inside it are a red flag in themselves (prompt-injection defence).
+const MANIPULATION_PATTERNS = [
+  /ignore (all |any )?(previous|prior|above) (instructions|rules)/i,
+  /\b(you are|you're) (an?|the) (ai|assistant|verifier|model)\b/i,
+  /\b(system prompt|developer message)\b/i,
+  /\b(approve|mark) (this|the) (project|claim|submission)\b/i,
+  /\bverifier (must|should|will) (approve|accept|pass)\b/i,
+  /\bset (the )?status to approved\b/i,
+];
+
+export function detectManipulation(project: Project) {
+  const hits = project.evidence.flatMap((e) => MANIPULATION_PATTERNS.filter((re) => re.test(e.text)).map((re) => e.text.match(re)![0]));
+  return { suspicious: hits.length > 0, phrases: hits };
+}
+
+export const verifierTools = { checkOverlap, findReusedEvidence, findSimilarEvidence, compareBaseline, detectManipulation };
