@@ -66,10 +66,17 @@ export async function verifyProject(
       if (opts.record) saveTrace(project.projectId, { key, model: opts.model ?? DEFAULT_MODEL, recordedAt: new Date().toISOString(), steps, attestation: raw });
       return { ...applyGuardrails(raw, project, guard.flags), engine: "llm" };
     } catch (err) {
-      emit({ type: "verifier_step", projectId: project.projectId, step: 0, tool: "fallback", reason: `LLM unavailable (${(err as Error).message}); using rule checks`, result: null, source: "rules" });
+      emit({ type: "verifier_step", projectId: project.projectId, step: 0, tool: "fallback", reason: `LLM unavailable (${shortError(err)}); using rule checks`, result: null, source: "rules" });
     }
   }
   return rulesOnly(project, guard, emit);
+}
+
+/** API errors embed a JSON body; keep just the human-readable message for the Arena. */
+function shortError(err: unknown): string {
+  const msg = (err as Error)?.message ?? String(err);
+  const inner = msg.match(/"message":"((?:[^"\\]|\\.)*)"/);
+  return (inner ? inner[1].replace(/\\"/g, '"') : msg).slice(0, 160);
 }
 
 function rulesOnly(project: Project, guard: ReturnType<typeof runChecks>, emit: (e: ArenaEvent) => void): Attestation {
@@ -99,21 +106,26 @@ async function investigate(
   const messages: Anthropic.Messages.MessageParam[] = [{ role: "user", content: submissionMessage(project) }];
   let toolCalls = 0;
 
+  // Some models reject forced tool_choice ("any"/"tool"), so the loop only uses "auto":
+  // a text-only reply gets a nudge, and at the step limit the model is offered ONLY
+  // submit_attestation, which guarantees a verdict without forcing.
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const mustSubmit = toolCalls >= MAX_STEPS;
     const res = await llm.create({
       model,
       max_tokens: 1500,
-      temperature: 0,
       system: VERIFIER_SYSTEM,
-      tools: VERIFIER_TOOLS,
-      // "any" forces a tool call every turn, so the model can't drift into free text.
-      tool_choice: mustSubmit ? { type: "tool", name: "submit_attestation" } : { type: "any" },
+      tools: mustSubmit ? VERIFIER_TOOLS.filter((t) => t.name === "submit_attestation") : VERIFIER_TOOLS,
+      tool_choice: { type: "auto" },
       messages,
     });
 
     const uses = res.content.filter((b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use");
-    if (!uses.length) throw new Error("model returned no tool call");
+    if (!uses.length) {
+      messages.push({ role: "assistant", content: res.content.length ? res.content : [{ type: "text", text: "(no reply)" }] });
+      messages.push({ role: "user", content: mustSubmit ? "Investigation limit reached. Call submit_attestation now." : "Continue: call one of your tools, or call submit_attestation if you have enough evidence." });
+      continue;
+    }
 
     const submit = uses.find((u) => u.name === "submit_attestation");
     if (submit) {

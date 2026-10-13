@@ -13,7 +13,8 @@ const ctx = (...registryIds: string[]): VerifierContext => ({ registry: registry
 
 // ---------- a scripted fake model: each call returns the next scripted tool use(s)
 type Call = { name: string; input: Record<string, unknown> };
-function fakeLlm(script: (Call[] | Error)[]) {
+type Reply = Call[] | { text: string } | Error;
+function fakeLlm(script: Reply[]) {
   const requests: CreateParams[] = [];
   let i = 0;
   const client: LlmClient = {
@@ -21,6 +22,10 @@ function fakeLlm(script: (Call[] | Error)[]) {
       requests.push(structuredClone(params));
       const next = script[Math.min(i++, script.length - 1)];
       if (next instanceof Error) throw next;
+      if ("text" in next) {
+        return { id: `msg_${i}`, type: "message", role: "assistant", model: params.model, stop_reason: "end_turn", stop_sequence: null,
+          usage: { input_tokens: 0, output_tokens: 0 }, content: [{ type: "text", text: next.text, citations: null }] } as unknown as Message;
+      }
       return {
         id: `msg_${i}`, type: "message", role: "assistant", model: params.model, stop_reason: "tool_use", stop_sequence: null,
         usage: { input_tokens: 0, output_tokens: 0 },
@@ -66,12 +71,29 @@ describe("verifier agent — LLM tool-use loop", () => {
     expect(JSON.parse(String(toolResult.content))).toEqual([{ relatedProjectId: "forest-tr-001", overlapPct: 40 }]);
   });
 
-  it("forces a verdict after MAX_STEPS tool calls", async () => {
+  it("forces a verdict after MAX_STEPS tool calls by offering only submit_attestation", async () => {
     const loop: Call[] = [{ name: "compare_baseline", input: { reason: "again" } }];
     const { client, requests } = fakeLlm([...Array(MAX_STEPS).fill(loop), [approve()]]);
+    const att = await verifyProject(get("forest-tr-001"), ctx(), () => {}, { llm: client });
+    expect(att.engine).toBe("llm");
+    expect(requests.slice(0, MAX_STEPS).every((r) => r.tools!.length === 6)).toBe(true);
+    expect(requests[MAX_STEPS].tools!.map((t) => t.name)).toEqual(["submit_attestation"]);
+  });
+
+  it("only ever uses tool_choice auto and no temperature (some models reject the others)", async () => {
+    const { client, requests } = fakeLlm([[{ name: "check_overlap", input: { reason: "r" } }], [approve()]]);
     await verifyProject(get("forest-tr-001"), ctx(), () => {}, { llm: client });
-    expect(requests.slice(0, MAX_STEPS).every((r) => r.tool_choice?.type === "any")).toBe(true);
-    expect(requests[MAX_STEPS].tool_choice).toEqual({ type: "tool", name: "submit_attestation" });
+    for (const r of requests) {
+      expect(r.tool_choice).toEqual({ type: "auto" });
+      expect(r.temperature).toBeUndefined();
+    }
+  });
+
+  it("nudges the model back to its tools when it replies with text only", async () => {
+    const { client, requests } = fakeLlm([{ text: "Let me think about this claim." }, [approve()]]);
+    const att = await verifyProject(get("forest-tr-001"), ctx(), () => {}, { llm: client });
+    expect(att.engine).toBe("llm");
+    expect(requests[1].messages.at(-1)!.content).toMatch(/call one of your tools/);
   });
 
   it("never lets the model approve more than was claimed", async () => {
@@ -129,6 +151,14 @@ describe("verifier agent — failure handling", () => {
     expect(att.engine).toBe("rules");
     expect(att.status).toBe("REJECTED");
     expect(events[0]).toMatchObject({ type: "verifier_step", tool: "fallback", source: "rules" });
+  });
+
+  it("shows a short, readable reason when the API rejects a request", async () => {
+    const apiError = new Error('400 {"type":"error","error":{"type":"invalid_request_error","message":"tool_choice: type \\"tool\\" is not supported for this model."},"request_id":"req_1"}');
+    const { client } = fakeLlm([apiError]);
+    const { events, emit } = collect();
+    await verifyProject(get("forest-tr-001"), ctx(), emit, { llm: client });
+    expect(events[0]).toMatchObject({ reason: 'LLM unavailable (tool_choice: type "tool" is not supported for this model.); using rule checks' });
   });
 
   it("falls back when the model returns an invalid attestation", async () => {
