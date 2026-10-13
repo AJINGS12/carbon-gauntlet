@@ -19,14 +19,14 @@ AI agents ──actions──▶ Simulation engine ──claims──▶ AI Veri
 - **AI and evidence produce attestations; the blockchain enforces what happens after.** The chain never claims to prove a forest exists.
 - The same attacks run against two registry instances: **Unprotected** (checks off) and **Protected** (checks on).
 
-## Current results (demo mode, seed 42)
+## Current results (scripted reference run)
 
 | | Unprotected | Protected |
 | --- | --- | --- |
 | Fraudulent claims accepted | 6 | 0 |
 | Attacks blocked | 0 | 7 |
-| Credits at risk (tCO2e) | 5,600 | 0 |
-| Integrity score | 41 | 100 |
+| Credits at risk (tCO2e) | 5,250 | 0 |
+| Integrity score | 42 | 100 |
 | Honest claims blocked | 0 | 0 |
 
 ## Repo layout
@@ -35,7 +35,7 @@ AI agents ──actions──▶ Simulation engine ──claims──▶ AI Veri
 apps/web/        React (Vite) Arena — deploys to Vercel
 apps/api/        Express + TypeScript API, streams rounds over SSE — deploys to Render
   src/verifier/  verifier tools (overlap, evidence reuse/similarity, baseline) + agent loop
-  src/agents/    attacker and honest agent policies (plan, act, replan)
+  src/agents/    roles, Claude agent policy, scripted fallback, run recordings
   src/engine/    rounds, validation, metrics, run anchoring
   src/chain/     registry adapter (mock now, Base Sepolia next)
 contracts/       CreditRegistry.sol + Hardhat tests
@@ -76,7 +76,7 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 | --- | --- |
 | CreditRegistry contract + 7 tests | Viem adapter for Base Sepolia |
 | Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 12/12 on live eval, 21 tests ([docs/verifier.md](docs/verifier.md)) | |
-| Agent plans + replanning (deterministic) | LLM agent policies with fallback |
+| AI agents: Claude decides each move, invents clone attacks, replans after rejection; objective attack classification; recorded runs; 10 tests ([docs/agents.md](docs/agents.md)) | |
 | Engine, metrics, run anchoring, SSE API | Postgres persistence, ledger + results screens, map |
 | Minimal Arena | Agent cards, investigation trace view |
 
@@ -84,6 +84,7 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 
 ```bash
 npm run contracts:test                            # contract rules, both modes
-npm test -w apps/api                              # verifier agent + simulation story (25 tests)
+npm test -w apps/api                              # verifier, agents, simulation story (35 tests)
 npm run eval:verifier -w apps/api                 # 12 seed projects scored: frauds caught, honest passed
+npm run sim -w apps/api                           # full simulation, both modes, pass/fail scorecard
 ```

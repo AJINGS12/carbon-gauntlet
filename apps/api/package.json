@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "eval:verifier": "tsx scripts/eval-verifier.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sim": "tsx scripts/sim.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.60.0",

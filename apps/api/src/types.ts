@@ -58,7 +58,9 @@ export type Attestation = z.infer<typeof AttestationSchema>;
 
 // ---------- Agent actions (section 8). The engine, not the model, decides validity.
 export const AgentActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("REGISTER_PROJECT"), params: z.object({ projectId: z.string(), copyFrom: z.string().optional(), shiftKm: z.number().optional(), hostCountry: z.string().length(2).optional() }) }),
+  z.object({ action: z.literal("REGISTER_PROJECT"), params: z.object({ projectId: z.string() }) }),
+  // Clone a registered project's paperwork onto a plot shifted east by shiftKm (an attack by construction).
+  z.object({ action: z.literal("REGISTER_VARIANT"), params: z.object({ copyFrom: z.string(), shiftKm: z.number().min(0).max(20) }) }),
   z.object({ action: z.literal("MINT_CREDITS"), params: z.object({ projectId: z.string(), quantity: z.number().int().positive() }) }),
   z.object({ action: z.literal("TRANSFER_CREDITS"), params: z.object({ batchId: z.number().int(), to: z.string(), toCountry: z.string().length(2) }) }),
   z.object({ action: z.literal("RETIRE_CREDITS"), params: z.object({ batchId: z.number().int(), beneficiary: z.string() }) }),
@@ -71,17 +73,23 @@ export const AgentDecisionSchema = z.object({
   agentId: z.string(),
   plan: z.array(z.string()).max(3),
   step: AgentActionSchema,
-  reason: z.string().max(200),
+  reason: z.string().max(300),
+  source: z.enum(["llm", "replay", "script"]).optional(),  // who decided: live model, recorded model, or scripted fallback
+  replanned: z.boolean().optional(),                        // previous action was rejected and the agent chose again
+  previousPlan: z.array(z.string()).optional(),
 });
 export type AgentDecision = z.infer<typeof AgentDecisionSchema>;
 
 // ---------- Streamed to the Arena over Server-Sent Events
+export type AgentAction = z.infer<typeof AgentActionSchema>;
+
 export type ArenaEvent =
   | { type: "round_started"; round: number; mode: Mode }
   | { type: "agent_decision"; decision: AgentDecision }
   | { type: "verifier_step"; projectId: string; step: number; tool: string; reason: string; result: unknown; source: "llm" | "replay" | "rules" }
   | { type: "attestation"; attestation: Attestation }
-  | { type: "action_result"; agentId: string; action: string; accepted: boolean; reason?: string; txHash?: string }
+  | { type: "action_result"; agentId: string; action: string; accepted: boolean; attack: boolean; reason?: string; txHash?: string }
+  | { type: "agent_fallback"; agentId: string; reason: string }
   | { type: "round_finished"; round: number; metrics: Metrics };
 
 export type Mode = "UNPROTECTED" | "PROTECTED";

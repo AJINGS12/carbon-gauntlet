@@ -1,10 +1,9 @@
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type Anthropic from "@anthropic-ai/sdk";
 import { ProjectSchema, type ArenaEvent, type Project } from "../types.js";
 import type { CreateParams, LlmClient, Message } from "../llm/client.js";
 import { MAX_STEPS, verifyProject, type VerifierContext } from "./agent.js";
-import { traceKey } from "./traces.js";
 
 // ---------- fixtures: real seed data
 const seed: Project[] = JSON.parse(readFileSync(new URL("../../../../data/seed/projects.json", import.meta.url), "utf8")).projects.map((p: unknown) => ProjectSchema.parse(p));
@@ -232,8 +231,6 @@ describe("verifier agent — recorded traces for demo mode", () => {
     expect(att.status).toBe("REJECTED"); // the recorded model approved; the guardrail still wins
     expect(events[0]).toMatchObject({ tool: "check_overlap", reason: "Check the neighbour.", source: "replay" });
 
-    const { planted: _p, ...visible } = project;
-    rmSync(new URL(`../../../../data/traces/verifier/forest-tr-002.${traceKey(visible, c.registry.map(({ planted: _x, ...r }) => r))}.json`, import.meta.url));
   });
 
   it("uses rule checks in demo mode when no trace matches", async () => {

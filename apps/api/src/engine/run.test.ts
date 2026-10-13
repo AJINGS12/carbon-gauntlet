@@ -1,9 +1,10 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRun, playRound, MAX_ROUNDS } from "./run.js";
 import type { ArenaEvent, Metrics, Mode } from "../types.js";
 
-// Demo mode: no live LLM calls, so these results are deterministic.
+// Demo mode with no recordings: scripted agents and rule checks, so results are deterministic.
 beforeAll(() => { process.env.DEMO_MODE = "true"; });
+afterAll(() => { process.env.DEMO_MODE = "false"; });
 
 async function fullRun(mode: Mode) {
   const run = await createRun(mode);

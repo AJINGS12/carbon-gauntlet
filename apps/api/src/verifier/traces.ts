@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tracesDir } from "../traces-dir.js";
 import type { Attestation, Project } from "../types.js";
 
 /**
@@ -10,7 +11,7 @@ import type { Attestation, Project } from "../types.js";
 export interface TraceStep { tool: string; reason: string; result: unknown }
 export interface Trace { key: string; model: string; recordedAt: string; steps: TraceStep[]; attestation: Attestation }
 
-const DIR = new URL("../../../../data/traces/verifier/", import.meta.url);
+const dir = () => tracesDir("verifier");
 
 export function traceKey(project: Project, registry: Project[]): string {
   const ids = registry.map((p) => p.projectId).filter((id) => id !== project.projectId).sort();
@@ -18,11 +19,11 @@ export function traceKey(project: Project, registry: Project[]): string {
 }
 
 export function loadTrace(projectId: string, key: string): Trace | null {
-  const file = new URL(`${projectId}.${key}.json`, DIR);
+  const file = new URL(`${projectId}.${key}.json`, dir());
   return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Trace) : null;
 }
 
 export function saveTrace(projectId: string, trace: Trace): void {
-  mkdirSync(DIR, { recursive: true });
-  writeFileSync(new URL(`${projectId}.${trace.key}.json`, DIR), JSON.stringify(trace, null, 2));
+  mkdirSync(dir(), { recursive: true });
+  writeFileSync(new URL(`${projectId}.${trace.key}.json`, dir()), JSON.stringify(trace, null, 2));
 }

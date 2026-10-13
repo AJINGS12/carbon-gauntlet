@@ -23,3 +23,7 @@ button:disabled { opacity: .5; cursor: default; }
 .item.ok .badge { color: var(--ok); }
 .item.blocked .badge { color: var(--bad); }
 .item.blocked { border-left: 3px solid var(--bad); }
+.item.breach .badge { color: var(--bad); }
+.item.breach { border-left: 3px solid var(--bad); background: #2a1a18; }
+.item.replan .badge { color: var(--accent); }
+.item.replan { border-left: 3px solid var(--accent); }

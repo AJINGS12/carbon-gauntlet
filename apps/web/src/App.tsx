@@ -6,7 +6,7 @@ import { useState } from "react";
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 type Mode = "UNPROTECTED" | "PROTECTED";
 type Metrics = Record<string, number | null>;
-interface FeedItem { id: number; round: number; text: string; kind: "ok" | "blocked" | "agent" | "verifier" }
+interface FeedItem { id: number; round: number; text: string; kind: "ok" | "breach" | "blocked" | "agent" | "verifier" | "replan" }
 
 const METRIC_LABELS: Record<string, string> = {
   fraudulentClaimsAccepted: "Fraudulent claims accepted",
@@ -51,7 +51,13 @@ export default function App() {
       for (const part of parts) {
         const e = JSON.parse(part.replace(/^data: /, ""));
         if (e.type === "round_started") current = e.round;
-        if (e.type === "agent_decision") push(current, `${e.decision.agentId}: ${e.decision.reason}`, "agent");
+        if (e.type === "agent_decision") {
+          const d = e.decision;
+          const by = d.source === "llm" ? "AI" : d.source === "replay" ? "AI (recorded)" : "scripted";
+          if (d.replanned) push(current, `${d.agentId} replans after a rejection. Was: ${(d.previousPlan ?? []).join(" → ") || "-"}. Now: ${d.plan.join(" → ")}`, "replan");
+          if (d.step.action !== "WAIT") push(current, `${d.agentId} [${by}]: ${d.reason}`, "agent");
+        }
+        if (e.type === "agent_fallback") push(current, `${e.agentId}: ${e.reason}`, "agent");
         if (e.type === "verifier_step") {
           const by = e.source === "llm" ? "AI" : e.source === "replay" ? "AI (recorded)" : "rules";
           push(current, `Verifier [${by}] ${e.step ? `step ${e.step}: ` : ""}${e.tool} — ${e.reason}`, "verifier");
@@ -61,7 +67,7 @@ export default function App() {
           push(current, `Verifier attests ${a.projectId}: ${a.status}${a.guardrailOverride ? " (guardrail override)" : ""}. ${a.explanation}`, "verifier");
         }
         if (e.type === "action_result" && e.action !== "WAIT")
-          push(current, `${e.agentId} ${e.action}: ${e.accepted ? "ACCEPTED" : `BLOCKED (${e.reason})`}`, e.accepted ? "ok" : "blocked");
+          push(current, `${e.agentId} ${e.action}: ${e.accepted ? "ACCEPTED" : `BLOCKED (${e.reason})`}${e.attack ? " · attack" : ""}`, e.accepted ? (e.attack ? "breach" : "ok") : "blocked");
         if (e.type === "round_finished") { setRound(e.round); setMetrics(e.metrics); }
       }
     }
@@ -102,7 +108,7 @@ export default function App() {
         {feed.map((f) => (
           <div key={f.id} className={`item ${f.kind}`}>
             <span className="round">R{f.round}</span>
-            <span className="badge">{f.kind === "blocked" ? "✕ blocked" : f.kind === "ok" ? "✓ accepted" : f.kind}</span>
+            <span className="badge">{f.kind === "blocked" ? "✕ blocked" : f.kind === "ok" ? "✓ accepted" : f.kind === "breach" ? "! fraud through" : f.kind === "replan" ? "↻ replan" : f.kind}</span>
             {f.text}
           </div>
         ))}
