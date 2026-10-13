@@ -72,7 +72,7 @@ export const VERIFIER_TOOLS: Anthropic.Messages.Tool[] = [
           },
         },
         recommendedAction: { type: "string", enum: ["ALLOW_MINTING", "REQUEST_EVIDENCE", "FREEZE_CREDIT_MINTING"] },
-        approvedReduction: { type: "number", minimum: 0, description: "tCO2e that may be minted; 0 unless APPROVED." },
+        approvedReduction: { type: "number", minimum: 0, description: "Whole tCO2e that may be minted (1 credit = 1 tonne, round down); 0 unless APPROVED." },
         explanation: { type: "string", description: "Two or three plain-language sentences for a non-expert." },
       },
       required: ["status", "confidence", "riskFlags", "recommendedAction", "approvedReduction", "explanation"],

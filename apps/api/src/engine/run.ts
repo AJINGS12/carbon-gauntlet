@@ -32,6 +32,7 @@ export interface Run {
   agents: AgentState[];
   attested: Project[];                         // projects the verifier has seen (overlap registry)
   history: Map<string, HistoryEntry[]>;        // verifier decisions by developer
+  approved: Map<string, number>;               // projectId -> tCO2e the verifier approved
   batches: Map<number, { projectId: string; owner: string; quantity: number }>;
   log: { round: number; agentId: string; action: string; attack: boolean; scheme: string; accepted: boolean; reason?: string; quantity: number }[];
   schemeStart: Map<string, number>;
@@ -46,7 +47,7 @@ export const getRun = (id: string) => runs.get(id);
 /** Creates a run and seeds a small honest market: green-coop's projects verified and minted. */
 export async function createRun(mode: Mode): Promise<Run> {
   const chain = createChain(mode);
-  const run: Run = { id: randomUUID(), mode, round: 0, chain, agents: [], attested: [], history: new Map(), batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0 };
+  const run: Run = { id: randomUUID(), mode, round: 0, chain, agents: [], attested: [], history: new Map(), approved: new Map(), batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0 };
   const minted: Record<string, number> = {};
   for (const id of ["solar-ke-002", "methane-br-001", "forest-br-002", "cookstove-br-003", "solar-tr-003"]) {
     const p = seedById.get(id)!;
@@ -97,7 +98,7 @@ export async function playRound(run: Run, emit: (e: ArenaEvent) => void) {
     if (!tactic) continue;
 
     const step = AgentActionSchema.safeParse(decision.step);       // never trust model output
-    const result: TxResult = step.success ? await execute(run, agent, step.data, emit) : { accepted: false, reason: "InvalidAction" };
+    const result: TxResult = step.success ? await execute(run, agent, step.data, emit, !tactic.isAttack) : { accepted: false, reason: "InvalidAction" };
 
     const qty = "quantity" in decision.step.params ? Number(decision.step.params.quantity) : (decision.step.action === "BUY_CREDITS" || decision.step.action === "TRANSFER_CREDITS") ? run.batches.get(Number((decision.step.params as { batchId: number }).batchId))?.quantity ?? 0 : 0;
     run.log.push({ round: run.round, agentId: agent.id, action: decision.step.action, attack: tactic.isAttack, scheme: tactic.scheme, accepted: result.accepted, reason: result.reason, quantity: qty });
@@ -118,7 +119,7 @@ export async function playRound(run: Run, emit: (e: ArenaEvent) => void) {
   return metrics;
 }
 
-async function execute(run: Run, agent: AgentState, step: ReturnType<typeof AgentActionSchema.parse>, emit: (e: ArenaEvent) => void): Promise<TxResult> {
+async function execute(run: Run, agent: AgentState, step: ReturnType<typeof AgentActionSchema.parse>, emit: (e: ArenaEvent) => void, honest: boolean): Promise<TxResult> {
   const { chain } = run;
   switch (step.action) {
     case "REGISTER_PROJECT": {
@@ -138,16 +139,20 @@ async function execute(run: Run, agent: AgentState, step: ReturnType<typeof Agen
       });
       emit({ type: "attestation", attestation: att });
       run.attested.push(p);
+      run.approved.set(p.projectId, att.approvedReduction);
       recordHistory(run, p.developerId, { projectId: p.projectId, status: att.status, flags: att.riskFlags.map((f) => f.type) });
       const onChain = await chain.submitAttestation(p.projectId, att.status, att.approvedReduction, sha256(p.evidence[0].text));
       if (!onChain.accepted) return onChain;
       return att.status === "APPROVED" ? onChain : { accepted: false, reason: `Verifier ${att.status}: ${att.riskFlags.map((f) => f.type).join(", ")}`, txHash: onChain.txHash };
     }
     case "MINT_CREDITS": {
-      const r = await chain.mintCredits(step.params.projectId, agent.address, step.params.quantity);
+      // An honest developer mints what the verifier approved; attackers try their full amount.
+      const approved = run.approved.get(step.params.projectId);
+      const quantity = honest && approved !== undefined ? Math.min(step.params.quantity, approved) : step.params.quantity;
+      const r = await chain.mintCredits(step.params.projectId, agent.address, quantity);
       if (r.accepted) {
-        run.batches.set(r.batchId!, { projectId: step.params.projectId, owner: agent.address, quantity: step.params.quantity });
-        run.totalMinted += step.params.quantity;
+        run.batches.set(r.batchId!, { projectId: step.params.projectId, owner: agent.address, quantity });
+        run.totalMinted += quantity;
       }
       return r;
     }

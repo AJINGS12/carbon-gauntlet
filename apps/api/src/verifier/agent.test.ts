@@ -102,6 +102,12 @@ describe("verifier agent — LLM tool-use loop", () => {
     expect(att.approvedReduction).toBe(300);
   });
 
+  it("rounds approved credits down to whole tonnes (the live model approved 695.6 t)", async () => {
+    const { client } = fakeLlm([[approve(695.6)]]);
+    const att = await verifyProject(get("solar-tr-003"), ctx(), () => {}, { llm: client });
+    expect(att.approvedReduction).toBe(695);
+  });
+
   it("never shows the model which projects are planted frauds", async () => {
     const { client, requests } = fakeLlm([[approve()]]);
     await verifyProject(get("forest-tr-002"), ctx("forest-tr-001"), () => {}, { llm: client });

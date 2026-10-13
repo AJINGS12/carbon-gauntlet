@@ -88,7 +88,7 @@ function rulesOnly(project: Project, guard: ReturnType<typeof runChecks>, emit: 
     recommendedAction,
     confidence: status === "APPROVED" ? 0.8 : 0.9,
     riskFlags: guard.flags,
-    approvedReduction: status === "APPROVED" ? project.claimedReduction : 0,
+    approvedReduction: status === "APPROVED" ? Math.floor(project.claimedReduction) : 0,
     explanation: guard.flags.length ? guard.flags.map((f) => f.detail).join(". ") + "." : "All rule checks passed: no overlap, no reused or copied evidence, and a plausible claim.",
     engine: "rules",
   };

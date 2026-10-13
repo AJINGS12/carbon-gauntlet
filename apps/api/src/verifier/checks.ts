@@ -95,7 +95,8 @@ export function applyGuardrails(llm: Attestation, project: Project, ruleFlags: R
     status,
     riskFlags: flags,
     recommendedAction: status === "APPROVED" ? "ALLOW_MINTING" : status === "REJECTED" ? "FREEZE_CREDIT_MINTING" : "REQUEST_EVIDENCE",
-    approvedReduction: status === "APPROVED" ? Math.min(llm.approvedReduction, project.claimedReduction) : 0,
+    // 1 credit = 1 whole tCO2e and the contract stores integers, so round DOWN (never over-issue).
+    approvedReduction: status === "APPROVED" ? Math.floor(Math.min(llm.approvedReduction, project.claimedReduction)) : 0,
     explanation: notes.length ? `${llm.explanation} [Guardrail: ${notes.join("; ")}.]` : llm.explanation,
     guardrailOverride: notes.length > 0,
   };

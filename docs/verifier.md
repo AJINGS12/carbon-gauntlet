@@ -42,7 +42,7 @@ Evidence is written by the applicant, so it is treated as untrusted data: it is 
 ## Verify it yourself
 
 ```bash
-npm test -w apps/api                              # 20 unit tests, scripted fake model
+npm test -w apps/api                              # 21 verifier tests (scripted fake model) + 4 simulation tests
 npm run eval:verifier -w apps/api -- --rules      # all 12 seed projects, rules only
 npm run eval:verifier -w apps/api                 # same with the live model (needs ANTHROPIC_API_KEY)
 npm run eval:verifier -w apps/api -- --record     # live, and save traces for demo mode
@@ -55,3 +55,5 @@ The eval exits with an error if any fraud is approved or any honest project is b
 11/12 on the first run. The one miss was a **data error the model caught**: a synthetic "honest" solar project claimed 800 tCO2e for 610 MWh of displaced diesel, which typical diesel emission factors (about 0.7–0.8 tCO2/MWh) can't support. The model asked for the emission-factor calculation. The seed data was corrected, not the verifier.
 
 The same run showed the model under-rating a 40% overlap, adding an overlap flag its own tool contradicted, and duplicating a rule finding. Each now has a guardrail and a regression test.
+
+**Second run: 12/12.** The model checked the arithmetic itself ("610 MWh × 0.74 = 451 t against 450 claimed"), followed leads to the owner of copied evidence, and on `forest-tr-002` the guardrail visibly raised its REVIEW to REJECTED. It approved 695.6 t on one project; approvals are now rounded down to whole tonnes, because 1 credit = 1 tCO2e and the contract stores integers.
