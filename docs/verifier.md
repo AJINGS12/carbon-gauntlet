@@ -16,11 +16,12 @@ The verifier decides whether a carbon-credit claim may be minted. It is an **AI 
    | `submit_attestation` | Final verdict, schema-validated (Zod) |
 
 2. **Guardrails (code).** The same checks also run deterministically on every submission, plus a scan for instructions aimed at the verifier (prompt injection). Then:
-   - any rule flag the model missed is added;
+   - model findings that the tools contradict (an overlap or reused evidence the tools didn't find) are removed, so every factual flag is backed by evidence;
+   - rule findings the model missed are added, and findings it under-rated are raised to the rule severity;
    - the **stricter** verdict wins, so the model can be stricter than the rules but never more lenient;
    - any HIGH flag means REJECTED, and the approved amount can never exceed the claim.
 
-   When the rules change the model's verdict, the attestation is marked `guardrailOverride: true` and says why.
+   When the guardrails change anything, the attestation is marked `guardrailOverride: true` and its explanation lists each change.
 
 3. **On-chain.** The backend submits the attestation and evidence hash to the `CreditRegistry` contract, which enforces minting rules.
 
@@ -41,10 +42,16 @@ Evidence is written by the applicant, so it is treated as untrusted data: it is 
 ## Verify it yourself
 
 ```bash
-npm test -w apps/api                              # 13 unit tests, scripted fake model
+npm test -w apps/api                              # 20 unit tests, scripted fake model
 npm run eval:verifier -w apps/api -- --rules      # all 12 seed projects, rules only
 npm run eval:verifier -w apps/api                 # same with the live model (needs ANTHROPIC_API_KEY)
 npm run eval:verifier -w apps/api -- --record     # live, and save traces for demo mode
 ```
 
 The eval exits with an error if any fraud is approved or any honest project is blocked.
+
+## First live evaluation (13 Oct 2026, claude-sonnet-5-5)
+
+11/12 on the first run. The one miss was a **data error the model caught**: a synthetic "honest" solar project claimed 800 tCO2e for 610 MWh of displaced diesel, which typical diesel emission factors (about 0.7–0.8 tCO2/MWh) can't support. The model asked for the emission-factor calculation. The seed data was corrected, not the verifier.
+
+The same run showed the model under-rating a 40% overlap, adding an overlap flag its own tool contradicted, and duplicating a rule finding. Each now has a guardrail and a regression test.

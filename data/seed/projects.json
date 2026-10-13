@@ -165,11 +165,11 @@
       "monitoringStart": "2026-01-01",
       "monitoringEnd": "2026-06-30",
       "baselineEmissions": 2000,
-      "claimedReduction": 800,
+      "claimedReduction": 450,
       "evidence": [
         {
           "type": "monitoring-report",
-          "text": "Rooftop solar for 14 schools in Thika replacing diesel generators. Inverter data shows 610 megawatt hours generated in the period; diesel purchase receipts dropped to near zero."
+          "text": "Rooftop solar for 14 schools in Thika replacing diesel generators. Inverter data shows 610 megawatt hours generated in the period; diesel purchase receipts dropped to near zero. Reduction uses a diesel generator emission factor of 0.74 tCO2 per MWh."
         }
       ]
     },
@@ -298,7 +298,7 @@
       "evidence": [
         {
           "type": "monitoring-report",
-          "text": "Ground-mounted array on an industrial roof cluster in Ankara supplying a textile mill. Grid export meter and utility invoices confirm displaced coal-heavy grid electricity for six months."
+          "text": "Rooftop array across an industrial roof cluster in Ankara supplying a textile mill. The export meter recorded 1,480 megawatt hours over six months, confirmed by utility invoices. Displaced grid electricity is counted at a grid emission factor of 0.47 tCO2 per MWh."
         }
       ]
     },
@@ -512,11 +512,11 @@
       "monitoringStart": "2026-01-01",
       "monitoringEnd": "2026-06-30",
       "baselineEmissions": 2000,
-      "claimedReduction": 800,
+      "claimedReduction": 450,
       "evidence": [
         {
           "type": "monitoring-report",
-          "text": "Rooftop solar for 14 schools in Sao Paulo replacing diesel generators. Inverter data shows 610 megawatt hours generated in the period; diesel purchase receipts dropped to near zero."
+          "text": "Rooftop solar for 14 schools in Sao Paulo replacing diesel generators. Inverter data shows 610 megawatt hours generated in the period; diesel purchase receipts dropped to near zero. Reduction uses a diesel generator emission factor of 0.74 tCO2 per MWh."
         }
       ],
       "planted": "SIMILAR_EVIDENCE: look-alike of solar-ke-002 in another country"

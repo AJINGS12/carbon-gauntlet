@@ -130,6 +130,44 @@ describe("verifier agent — guardrails", () => {
     expect(att.riskFlags).toContainEqual(expect.objectContaining({ type: "MANIPULATION_ATTEMPT", severity: "HIGH" }));
   });
 
+  // The three cases below reproduce what the live model did in the first real eval (Oct 13).
+  const verdict = (status: string, riskFlags: Record<string, unknown>[]): Call => ({
+    name: "submit_attestation",
+    input: { status, confidence: 0.8, riskFlags, recommendedAction: status === "APPROVED" ? "ALLOW_MINTING" : "REQUEST_EVIDENCE", approvedReduction: 0, explanation: "Model explanation." },
+  });
+
+  it("raises an under-rated finding to the rule severity, so the flag matches the verdict", async () => {
+    const { client } = fakeLlm([[verdict("REVIEW_REQUIRED", [{ type: "OVERLAPPING_PROJECT", severity: "MEDIUM", relatedProjectId: "forest-tr-001", detail: "40% overlap" }])]]);
+    const att = await verifyProject(get("forest-tr-002"), ctx("forest-tr-001"), () => {}, { llm: client });
+    expect(att.status).toBe("REJECTED");
+    expect(att.riskFlags).toHaveLength(1);
+    expect(att.riskFlags[0]).toMatchObject({ type: "OVERLAPPING_PROJECT", severity: "HIGH", source: "rule" });
+    expect(att.explanation).toMatch(/raised OVERLAPPING_PROJECT from MEDIUM to HIGH/);
+  });
+
+  it("removes a factual flag that the tool results contradict", async () => {
+    const { client } = fakeLlm([[verdict("REJECTED", [
+      { type: "REUSED_EVIDENCE", severity: "HIGH", relatedProjectId: "cookstove-ke-001", detail: "identical" },
+      { type: "OVERLAPPING_PROJECT", severity: "LOW", detail: "possible overlap" }, // no overlap exists
+    ])]]);
+    const att = await verifyProject(get("cookstove-ke-004"), ctx("cookstove-ke-001"), () => {}, { llm: client });
+    expect(att.riskFlags.map((f) => f.type)).toEqual(["REUSED_EVIDENCE"]);
+    expect(att.explanation).toMatch(/removed OVERLAPPING_PROJECT because the tool results show none/);
+  });
+
+  it("does not duplicate a finding the model already reported", async () => {
+    const { client } = fakeLlm([[verdict("REJECTED", [{ type: "REUSED_EVIDENCE", severity: "HIGH", detail: "word-for-word copy" }])]]);
+    const att = await verifyProject(get("cookstove-ke-004"), ctx("cookstove-ke-001"), () => {}, { llm: client });
+    expect(att.riskFlags.filter((f) => f.type === "REUSED_EVIDENCE")).toHaveLength(1);
+    expect(att.guardrailOverride).toBe(false);
+  });
+
+  it("lets the model approve with a LOW note that the rules don't contradict", async () => {
+    const { client } = fakeLlm([[{ ...approve(700), input: { ...approve(700).input, riskFlags: [{ type: "INCONSISTENT_EVIDENCE", severity: "LOW", detail: "minor wording" }] } }]]);
+    const att = await verifyProject(get("solar-tr-003"), ctx(), () => {}, { llm: client });
+    expect(att).toMatchObject({ status: "APPROVED", approvedReduction: 700, guardrailOverride: false });
+  });
+
   it("keeps a stricter model verdict (the model may catch what rules can't)", async () => {
     const { client } = fakeLlm([[{
       name: "submit_attestation",

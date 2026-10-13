@@ -25,7 +25,7 @@ AI agents ──actions──▶ Simulation engine ──claims──▶ AI Veri
 | --- | --- | --- |
 | Fraudulent claims accepted | 6 | 0 |
 | Attacks blocked | 0 | 7 |
-| Credits at risk (tCO2e) | 5,950 | 0 |
+| Credits at risk (tCO2e) | 5,600 | 0 |
 | Integrity score | 41 | 100 |
 | Honest claims blocked | 0 | 0 |
 
@@ -75,7 +75,7 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 | Done | Next |
 | --- | --- |
 | CreditRegistry contract + 7 tests | Viem adapter for Base Sepolia |
-| Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 13 tests ([docs/verifier.md](docs/verifier.md)) | |
+| Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 20 tests ([docs/verifier.md](docs/verifier.md)) | |
 | Agent plans + replanning (deterministic) | LLM agent policies with fallback |
 | Engine, metrics, run anchoring, SSE API | Postgres persistence, ledger + results screens, map |
 | Minimal Arena | Agent cards, investigation trace view |

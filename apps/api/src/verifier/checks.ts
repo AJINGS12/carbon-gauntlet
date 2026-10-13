@@ -49,22 +49,45 @@ export function verdictFor(flags: RiskFlag[]): Pick<Attestation, "status" | "rec
 }
 
 const RANK = { APPROVED: 0, REVIEW_REQUIRED: 1, REJECTED: 2 } as const;
+const SEVERITY = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
+
+// Factual findings that only a tool can establish. A model flag of these types must be backed
+// by a matching rule finding, otherwise it contradicts the tool results and is removed.
+const TOOL_BACKED = new Set<RiskFlag["type"]>(["OVERLAPPING_PROJECT", "REUSED_EVIDENCE"]);
+
+const sameFinding = (a: RiskFlag, b: RiskFlag) =>
+  a.type === b.type && (!a.relatedProjectId || !b.relatedProjectId || a.relatedProjectId === b.relatedProjectId);
 
 /**
- * Combine the LLM's attestation with the rule flags. The result is never MORE lenient than the
- * rules: missed rule flags are added, and the stricter of the two verdicts wins.
- * The LLM may still be STRICTER than the rules (e.g. spotting inconsistent evidence).
+ * Combine the LLM's attestation with the rule flags. The result is never MORE lenient than the rules:
+ *   1. model flags that contradict the tool results are removed (no unsupported findings);
+ *   2. rule findings the model missed are added, and under-rated ones are raised to the rule severity;
+ *   3. the stricter verdict wins, and any HIGH flag means REJECTED.
+ * The model may still be STRICTER than the rules (e.g. spotting inconsistent evidence).
  */
 export function applyGuardrails(llm: Attestation, project: Project, ruleFlags: RiskFlag[]): Attestation {
-  const key = (f: RiskFlag) => `${f.type}:${f.relatedProjectId ?? ""}`;
-  const llmKeys = new Set(llm.riskFlags.map(key));
-  const missed = ruleFlags.filter((f) => !llmKeys.has(key(f)));
-  const flags = [...llm.riskFlags.map((f) => ({ ...f, source: "llm" as const })), ...missed];
+  const notes: string[] = [];
 
-  const ruleVerdict = verdictFor(ruleFlags);
-  const strictest = RANK[ruleVerdict.status] > RANK[llm.status] ? ruleVerdict.status : llm.status;
-  const override = strictest !== llm.status || missed.some((f) => f.severity === "HIGH");
-  const status = flags.some((f) => f.severity === "HIGH") ? "REJECTED" : strictest;
+  const proposed = llm.riskFlags.map((f) => ({ ...f, source: "llm" as const }));
+  const flags: RiskFlag[] = proposed.filter((f) => !TOOL_BACKED.has(f.type) || ruleFlags.some((r) => sameFinding(r, f)));
+  const dropped = proposed.filter((f) => !flags.includes(f));
+  if (dropped.length) notes.push(`removed ${dropped.map((f) => f.type).join(", ")} because the tool results show none`);
+
+  for (const rule of ruleFlags) {
+    const match = flags.find((f) => sameFinding(f, rule));
+    if (!match) {
+      flags.push(rule);
+      notes.push(`added ${rule.type} (${rule.severity})`);
+    } else if (SEVERITY[rule.severity] > SEVERITY[match.severity]) {
+      notes.push(`raised ${rule.type} from ${match.severity} to ${rule.severity}`);
+      Object.assign(match, { severity: rule.severity, detail: rule.detail, source: "rule", relatedProjectId: match.relatedProjectId ?? rule.relatedProjectId });
+    }
+  }
+
+  const candidates: Attestation["status"][] = [llm.status, verdictFor(ruleFlags).status];
+  if (flags.some((f) => f.severity === "HIGH")) candidates.push("REJECTED");
+  const status = candidates.reduce((a, b) => (RANK[b] > RANK[a] ? b : a));
+  if (status !== llm.status) notes.push(`verdict raised from ${llm.status} to ${status}`);
 
   return {
     ...llm,
@@ -73,9 +96,7 @@ export function applyGuardrails(llm: Attestation, project: Project, ruleFlags: R
     riskFlags: flags,
     recommendedAction: status === "APPROVED" ? "ALLOW_MINTING" : status === "REJECTED" ? "FREEZE_CREDIT_MINTING" : "REQUEST_EVIDENCE",
     approvedReduction: status === "APPROVED" ? Math.min(llm.approvedReduction, project.claimedReduction) : 0,
-    explanation: override
-      ? `${llm.explanation} [Guardrail: rule checks found ${missed.map((f) => f.type).join(", ") || "a stricter verdict"}, so the verdict was raised to ${status}.]`
-      : llm.explanation,
-    guardrailOverride: override,
+    explanation: notes.length ? `${llm.explanation} [Guardrail: ${notes.join("; ")}.]` : llm.explanation,
+    guardrailOverride: notes.length > 0,
   };
 }
