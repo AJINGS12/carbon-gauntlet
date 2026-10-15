@@ -156,6 +156,22 @@ describe("observation and validation", () => {
     for (const id of ["honest-dev", "opportunist-dev", "broker", "coal-nation"]) expect(prompt(id)).not.toMatch(/PROTECTED|UNPROTECTED|strictMode/);
   });
 
+  it("does not reveal the mode through verdict labels after a project is approved", async () => {
+    // Found in the first live run: the Unprotected label "APPROVED (no verification)" told agents the mode.
+    const script: Script = { "honest-dev": () => ({ action: "REGISTER_PROJECT", projectId: "forest-tr-001" }) };
+    const prompts: Record<Mode, string> = { UNPROTECTED: "", PROTECTED: "" };
+    for (const mode of ["UNPROTECTED", "PROTECTED"] as const) {
+      setLlmForTesting(marketModel(script).client);
+      const run = await createRun(mode);
+      await playRound(run, () => {});
+      const opp = run.agents.find((a) => a.id === "opportunist-dev")!;
+      prompts[mode] = agentPrompt(opp, observe(run, opp)).replace(/history:[\s\S]*/, ""); // own history differs by design
+      expect(prompts[mode]).not.toMatch(/verification\)|no verification|unverified/i);
+    }
+    const line = (p: string) => p.split("\n").find((l) => l.includes("forest-tr-001 (reforestation"));
+    expect(line(prompts.UNPROTECTED)).toEqual(line(prompts.PROTECTED));
+  });
+
   it("rejects tool output with a wrong action or missing parameters", async () => {
     setLlmForTesting(null);
     const run = await createRun("PROTECTED");

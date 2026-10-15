@@ -273,7 +273,8 @@ async function register(run: Run, agent: AgentState, p: Project, emit: (e: Arena
   if (run.mode === "UNPROTECTED") {
     // No verifier: every claim is approved as submitted.
     run.attested.push(p);
-    run.registered.set(p.projectId, { developer: agent.id, verdict: "APPROVED (no verification)" });
+    // Shown to agents exactly like a verified approval: they must not be able to tell the mode from the label.
+    run.registered.set(p.projectId, { developer: agent.id, verdict: "APPROVED" });
     run.approved.set(p.projectId, p.claimedReduction);
     return chain.submitAttestation(p.projectId, "APPROVED", p.claimedReduction, evidenceHash);
   }

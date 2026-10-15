@@ -53,3 +53,21 @@ npm test -w apps/api                     # includes 10 agent tests driven by a s
 ```
 
 The scorecard fails if the Protected run lets any fraud through, blocks an honest claim, or shows no agent replanning.
+
+## First live run (15 Oct 2026, claude-sonnet-5-5)
+
+| | Unprotected | Protected |
+| --- | --- | --- |
+| Fraudulent claims accepted | 8 | 0 |
+| Attacks blocked | 0 | 12 |
+| Credits at risk (tCO2e) | 6,400 | 0 |
+| Honest claims blocked | 0 | 0 |
+| Replans | 0 | 10 |
+| Model fallbacks | 0 | 0 |
+
+What the agents did on their own:
+- The Opportunist led with its biggest fraud, then after each rejection read the reason and switched tactics. It invented four clone attacks, shifting copied paperwork 15–20 km to dodge the overlap check; the evidence fingerprint caught every one.
+- The Broker retired a batch for one client, then tried to sell it again. Blocked, it moved to a look-alike project, then clones of two different projects.
+- Coal Nation tried to count foreign credits with no corresponding adjustment. Blocked, it requested the adjustment and bought legally, and stayed compliant for the rest of the run.
+
+**Flaw found and fixed:** in the Unprotected run an agent said *"the registry approved my project without verification"*. The market view had labelled approvals `APPROVED (no verification)`, which revealed the mode. Approvals now read identically in both modes, with a regression test.

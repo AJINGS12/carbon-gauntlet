@@ -43,6 +43,7 @@ for (const mode of ["UNPROTECTED", "PROTECTED"] as const) {
         if (d.replanned) { replans++; console.log(`   ↻ ${d.agentId} REPLANS. Was: ${d.previousPlan?.join(" → ") || "-"}. Now: ${d.plan.join(" → ")}`); }
         if (d.step.action !== "WAIT") pending.set(d.agentId, `${d.agentId.padEnd(16)} ${d.step.action} ${JSON.stringify(d.step.params)}\n     "${d.reason}" [${d.source}]`);
       }
+      if (e.type === "verifier_step") sources.add(`verifier:${e.source}`);
       if (e.type === "attestation") console.log(`     verifier: ${e.attestation.projectId} → ${e.attestation.status}${e.attestation.guardrailOverride ? " (guardrail)" : ""} [${e.attestation.engine}]`);
       if (e.type === "action_result") {
         console.log(`   ${e.accepted ? "✓" : "✕"} ${pending.get(e.agentId)}`);
@@ -65,12 +66,19 @@ for (const [label, k] of rows) console.log(`${label.padEnd(28)}${String(u.metric
 console.log(`${"Replans".padEnd(28)}${String(u.replans).padEnd(14)}${p.replans}`);
 console.log(`${"Model fallbacks".padEnd(28)}${String(u.fallbacks).padEnd(14)}${p.fallbacks}`);
 
+const live = [...u.sources, ...p.sources].filter((s) => s === "llm" || s === "verifier:llm");
+console.log(`${"Decided by".padEnd(28)}${[...u.sources].filter((s) => !s.startsWith("verifier")).join("+").padEnd(14)}${[...p.sources].filter((s) => !s.startsWith("verifier")).join("+")}`);
+
 const checks: [string, boolean][] = [
   ["Unprotected: at least one fraud gets through", u.metrics.fraudulentClaimsAccepted > 0],
   ["Protected: no fraud gets through", p.metrics.fraudulentClaimsAccepted === 0],
   ["Protected: no honest claim blocked", p.metrics.honestClaimsBlocked === 0],
   ["Protected: at least one agent replans after a rejection", p.replans > 0],
 ];
+if (args.has("--demo")) {
+  checks.push(["Demo: no live API calls", live.length === 0]);
+  checks.push(["Demo: agent moves come from the recording", [...u.sources, ...p.sources].includes("replay")]);
+}
 console.log("");
 for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
 if (args.has("--record")) console.log("\nRecorded to data/traces/ — commit that folder so demo mode can replay this run.");
