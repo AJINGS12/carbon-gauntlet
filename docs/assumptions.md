@@ -26,5 +26,6 @@ Carbon Gauntlet is an **experimental prototype for the IEEE ClimateChain Global 
 - The verifier is a single trusted key in the MVP. Multiple independent verifiers are on the roadmap.
 
 ## Metrics
-- Credits at risk = credits minted from fraudulent claims + credits moved in double claims or retired-credit resales.
-- Integrity score = 100 × (1 − credits at risk ÷ (total minted + double-claimed)).
+- Each tonne is counted once, per batch. A fraudulent batch that is later resold or double-claimed is still one batch of tonnes at risk.
+- Credits at risk = tonnes in batches that were minted fraudulently or moved in a double claim or retired-credit resale.
+- Integrity score = 100 × (1 − credits at risk ÷ all credits issued in the run), i.e. the share of the market that is clean.

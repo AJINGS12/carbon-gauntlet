@@ -23,7 +23,7 @@ const days = (iso: string) => Math.floor(Date.parse(iso + "T00:00:00Z") / 1000);
 
 export type BatchStatus = "ACTIVE" | "RETIRED" | "FROZEN";
 export interface Batch { projectId: string; hostCountry: string; owner: string; quantity: number; status: BatchStatus; adjusted: boolean }
-export interface LogEntry { round: number; agentId: string; action: string; attack: boolean; scheme: string; accepted: boolean; reason?: string; quantity: number }
+export interface LogEntry { round: number; agentId: string; action: string; attack: boolean; scheme: string; accepted: boolean; reason?: string; quantity: number; batchId?: number }
 
 export interface Run {
   id: string;
@@ -221,7 +221,9 @@ export async function playRound(run: Run, emit: (e: ArenaEvent) => void) {
       : !allowed ? { accepted: false, reason: "ActionNotAllowedForRole" }
       : await execute(run, agent, parsed.data, emit);
 
-    run.log.push({ round: run.round, agentId: agent.id, action: decision.step.action, attack, scheme, accepted: result.accepted, reason: result.reason, quantity });
+    const step = parsed.success ? parsed.data : undefined;
+    const batchId = result.batchId ?? (step && "batchId" in step.params ? Number(step.params.batchId) : undefined);
+    run.log.push({ round: run.round, agentId: agent.id, action: decision.step.action, attack, scheme, accepted: result.accepted, reason: result.reason, quantity, batchId });
     if (attack) {
       if (!run.schemeStart.has(scheme)) run.schemeStart.set(scheme, run.round);
       if (!result.accepted) run.detectionRounds.push(run.round - run.schemeStart.get(scheme)!);
@@ -346,20 +348,29 @@ async function execute(run: Run, agent: AgentState, step: AgentAction, emit: (e:
   }
 }
 
+/**
+ * Metrics count each tonne once. A fraudulent batch that is later resold or double-claimed is
+ * still one batch of tonnes at risk (found in a live run: a buyer purchased a fraudulent batch,
+ * and the earlier formula counted those tonnes twice).
+ */
 export function computeMetrics(run: Run): Metrics {
   const attacks = run.log.filter((l) => l.attack);
   const accepted = attacks.filter((l) => l.accepted);
-  // Credits at risk: minted from fraudulent claims + credits moved in a double claim or retired resale.
-  const atRisk = accepted.filter((l) => ["MINT_CREDITS", "BUY_CREDITS", "TRANSFER_CREDITS"].includes(l.action)).reduce((s, l) => s + l.quantity, 0);
-  const doubleClaimed = accepted.filter((l) => l.action === "BUY_CREDITS" || l.action === "TRANSFER_CREDITS").reduce((s, l) => s + l.quantity, 0);
-  const denominator = run.totalMinted + doubleClaimed;
+  const tonnes = (entries: LogEntry[]) => {
+    const byBatch = new Map<number, number>();
+    for (const l of entries) if (l.batchId !== undefined) byBatch.set(l.batchId, l.quantity);
+    return [...byBatch.values()].reduce((a, b) => a + b, 0);
+  };
+  const moved = accepted.filter((l) => l.action === "BUY_CREDITS" || l.action === "TRANSFER_CREDITS");
+  const atRisk = tonnes(accepted.filter((l) => l.action === "MINT_CREDITS" || moved.includes(l)));
   return {
     fraudulentClaimsAccepted: accepted.filter((l) => l.action !== "REGISTER_PROJECT" && l.action !== "REGISTER_VARIANT").length,
     attacksBlocked: attacks.length - accepted.length,
     creditsAtRisk: atRisk,
-    doubleClaimedCredits: doubleClaimed,
+    doubleClaimedCredits: tonnes(moved),
     avgRoundsToDetection: run.detectionRounds.length ? +(run.detectionRounds.reduce((a, b) => a + b, 0) / run.detectionRounds.length).toFixed(1) : null,
-    integrityScore: denominator ? Math.round(100 * (1 - atRisk / denominator)) : 100,
+    // Share of all credits issued in this market that are fraudulent or double-counted.
+    integrityScore: run.totalMinted ? Math.round(100 * (1 - atRisk / run.totalMinted)) : 100,
     honestClaimsBlocked: run.log.filter((l) => !l.attack && !l.accepted && run.agents.find((a) => a.id === l.agentId)?.honest).length,
   };
 }

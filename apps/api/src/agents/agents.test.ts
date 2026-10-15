@@ -108,6 +108,19 @@ describe("model-driven agents", () => {
   });
 });
 
+describe("metrics count each tonne once (16 Oct live run)", () => {
+  it("a fraudulent batch that is then bought abroad is counted once, not twice", async () => {
+    const { client } = marketModel({
+      "opportunist-dev": (r) => (r === 1 ? { action: "REGISTER_PROJECT", projectId: "forest-br-004" } : r === 2 ? { action: "MINT_CREDITS", projectId: "forest-br-004", quantity: 2400 } : { action: "WAIT" }),
+      "coal-nation": (r) => (r === 3 ? { action: "BUY_CREDITS", batchId: 6 } : { action: "WAIT" }), // batches 1-5 are the pre-seeded market
+    });
+    const { metrics, run } = await play("UNPROTECTED", client);
+    expect(run.batches.get(6)).toMatchObject({ projectId: "forest-br-004", owner: run.agents.find((a) => a.id === "coal-nation")!.address });
+    expect(metrics).toMatchObject({ creditsAtRisk: 2400, doubleClaimedCredits: 2400, fraudulentClaimsAccepted: 2 });
+    expect(metrics.integrityScore).toBe(Math.round(100 * (1 - 2400 / run.totalMinted)));
+  });
+});
+
 describe("evidence squatting (reproduces the 16 Oct live run)", () => {
   it("an attacker filing a copied report first cannot lock the genuine owner out", async () => {
     const { client } = marketModel({

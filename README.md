@@ -19,14 +19,27 @@ AI agents ──actions──▶ Simulation engine ──claims──▶ AI Veri
 - **AI and evidence produce attestations; the blockchain enforces what happens after.** The chain never claims to prove a forest exists.
 - The same attacks run against two registry instances: **Unprotected** (checks off) and **Protected** (checks on).
 
-## Current results (scripted reference run)
+## Results
+
+Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier). Replay it free with `npm run sim -w apps/api -- --demo`.
+
+| | Unprotected | Protected |
+| --- | --- | --- |
+| Fraudulent claims accepted | 9 | 0 |
+| Attacks blocked | 0 | 12 |
+| Credits at risk (tCO2e) | 5,950 | 0 |
+| Integrity score | 16 | 100 |
+| Honest claims blocked | 0 | 0 |
+| Agent replans after rejection | 0 | 10 |
+
+### Scripted reference run (no API key)
 
 | | Unprotected | Protected |
 | --- | --- | --- |
 | Fraudulent claims accepted | 6 | 0 |
 | Attacks blocked | 0 | 7 |
 | Credits at risk (tCO2e) | 5,250 | 0 |
-| Integrity score | 42 | 100 |
+| Integrity score | 26 | 100 |
 | Honest claims blocked | 0 | 0 |
 
 ## Repo layout

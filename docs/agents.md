@@ -87,3 +87,20 @@ Regression tests reproduce the exact sequence in the contract, the verifier and 
 **Remaining limitation:** overlapping *land* is still first-to-file. In practice that is settled by land-tenure records, which this prototype doesn't model.
 
 **Also observed:** on Haiku, some attackers played it safe (the Broker declined to cheat), and one decision had an empty reason. Attackers are now briefed as a red team whose refusal makes the test meaningless, and empty reasons are rejected and retried.
+
+## Third live run: the recorded demo (16 Oct 2026, Sonnet attackers, Haiku verifier)
+
+| | Unprotected | Protected |
+| --- | --- | --- |
+| Fraudulent claims accepted | 9 | 0 |
+| Attacks blocked | 0 | 12 |
+| Credits at risk (tCO2e) | 5,950 | 0 |
+| Integrity score | 16 | 100 |
+| Honest claims blocked | 0 | 0 |
+| Replans | 0 | 10 |
+
+- The Opportunist and the Broker escalated from prepared frauds to clones of four different approved projects (12–20 km shifts); every clone was caught by report provenance.
+- The squatting fix held against a live attacker: `cookstove-ke-004` was caught as a copy of the Kibera report.
+- One verifier model call failed mid-run; the rule checks took over and still blocked the attack.
+
+**Metric correction from this run:** Coal Nation bought the Opportunist's fraudulent 2,400 t batch, and the first formula counted those tonnes twice (as a fraudulent mint and as a double claim), reporting 8,800 t at risk. Metrics now count each batch once: 5,950 t. Regression test added.
