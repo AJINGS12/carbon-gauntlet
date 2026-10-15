@@ -1,0 +1,100 @@
+{
+  "key": "a525d3e2571d87ee",
+  "model": "claude-haiku-5-5",
+  "recordedAt": "2026-10-15T17:18:36.087Z",
+  "steps": [
+    {
+      "tool": "check_evidence_provenance",
+      "reason": "Confirm whether the submitted monitoring report was registered by an accredited auditor for this project.",
+      "result": {
+        "status": "VERIFIED",
+        "items": [
+          {
+            "type": "monitoring-report",
+            "registered": true,
+            "issuedFor": "forest-tr-002",
+            "auditor": "Auditor A (synthetic)",
+            "matchesThisProject": true
+          }
+        ]
+      }
+    },
+    {
+      "tool": "check_overlap",
+      "reason": "Check whether this project's boundary and monitoring period overlap other registered projects.",
+      "result": [
+        {
+          "relatedProjectId": "forest-tr-001",
+          "overlapPct": 40
+        }
+      ]
+    },
+    {
+      "tool": "find_reused_evidence",
+      "reason": "Check whether this evidence text is identical to text submitted by other projects.",
+      "result": []
+    },
+    {
+      "tool": "find_similar_evidence",
+      "reason": "Check whether this evidence is near-identical to other projects' evidence.",
+      "result": []
+    },
+    {
+      "tool": "compare_baseline",
+      "reason": "Check whether the claimed 300 tCO2e reduction is plausible for this reforestation methodology.",
+      "result": {
+        "hectares": 98.9,
+        "claimedPerHa": 3.03,
+        "plausibleRange": [
+          0.5,
+          6
+        ],
+        "withinRange": true
+      }
+    },
+    {
+      "tool": "lookup_developer_history",
+      "reason": "Review past verifier decisions for this developer given the 40% boundary overlap with forest-tr-001.",
+      "result": [
+        {
+          "projectId": "forest-br-004",
+          "status": "REJECTED",
+          "flags": [
+            "INFLATED_BASELINE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        },
+        {
+          "projectId": "methane-br-001-copy1",
+          "status": "REJECTED",
+          "flags": [
+            "REUSED_EVIDENCE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        }
+      ]
+    }
+  ],
+  "attestation": {
+    "projectId": "forest-tr-002",
+    "status": "REJECTED",
+    "confidence": 0.8,
+    "riskFlags": [
+      {
+        "type": "OVERLAPPING_PROJECT",
+        "severity": "HIGH",
+        "relatedProjectId": "forest-tr-001",
+        "detail": "40% of forest-tr-002's boundary overlaps registered project forest-tr-001 over an overlapping monitoring period, creating a double-counting risk for the same land."
+      },
+      {
+        "type": "INCONSISTENT_EVIDENCE",
+        "severity": "MEDIUM",
+        "relatedProjectId": "forest-br-004",
+        "detail": "Developer opportunist-dev has prior REJECTED decisions on forest-br-004 (flags: INFLATED_BASELINE, INCONSISTENT_EVIDENCE) and methane-br-001-copy1 (flags: REUSED_EVIDENCE, INCONSISTENT_EVIDENCE)."
+      }
+    ],
+    "recommendedAction": "FREEZE_CREDIT_MINTING",
+    "approvedReduction": 0,
+    "explanation": "The project's land boundary overlaps 40% with another registered project (forest-tr-001) during the same monitoring period, so the same carbon could be counted twice. The developer also has two prior rejected submissions for inflated baselines, inconsistent evidence, and reused evidence, so no credits should be minted for this claim."
+  }
+}

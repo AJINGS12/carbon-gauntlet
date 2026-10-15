@@ -1,0 +1,60 @@
+{
+  "key": "486dbfed87dc5a13",
+  "model": "claude-haiku-5-5",
+  "recordedAt": "2026-10-15T17:18:22.290Z",
+  "steps": [
+    {
+      "tool": "check_evidence_provenance",
+      "reason": "Confirm whether the submitted monitoring report was registered by an accredited auditor for this project.",
+      "result": {
+        "status": "VERIFIED",
+        "items": [
+          {
+            "type": "monitoring-report",
+            "registered": true,
+            "issuedFor": "cookstove-ke-001",
+            "auditor": "Auditor A (synthetic)",
+            "matchesThisProject": true
+          }
+        ]
+      }
+    },
+    {
+      "tool": "check_overlap",
+      "reason": "Check whether this project's boundary and monitoring period overlap other registered projects.",
+      "result": []
+    },
+    {
+      "tool": "find_reused_evidence",
+      "reason": "Check whether this evidence text is identical to text submitted by other projects.",
+      "result": []
+    },
+    {
+      "tool": "find_similar_evidence",
+      "reason": "Check whether this evidence is near-identical to other projects' evidence.",
+      "result": []
+    },
+    {
+      "tool": "compare_baseline",
+      "reason": "Compare the claimed 150 tCO2e reduction against the plausible range for cookstove projects.",
+      "result": {
+        "hectares": 123.6,
+        "claimedPerHa": 1.21,
+        "plausibleRange": [
+          0.2,
+          3
+        ],
+        "withinRange": true
+      }
+    }
+  ],
+  "attestation": {
+    "projectId": "cookstove-ke-001",
+    "status": "APPROVED",
+    "confidence": 0.8,
+    "riskFlags": [],
+    "recommendedAction": "ALLOW_MINTING",
+    "approvedReduction": 150,
+    "explanation": "The monitoring report is verified as belonging to this project, and no overlapping projects, copied evidence, or near-duplicate text were found. The claimed 150 tCO2e reduction (about 1.21 tCO2e per hectare) falls within the plausible range for cookstove projects, and the reported drop in firewood use (6.1 to 3.4 kg per day) is consistent with the claim. The evidence is thin, since usage was checked by spot visits with no sample size reported, but nothing found is material enough to block minting."
+  }
+}

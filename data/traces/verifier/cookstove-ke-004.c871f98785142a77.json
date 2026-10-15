@@ -1,0 +1,120 @@
+{
+  "key": "c871f98785142a77",
+  "model": "claude-haiku-5-5",
+  "recordedAt": "2026-10-15T17:19:04.574Z",
+  "steps": [
+    {
+      "tool": "check_evidence_provenance",
+      "reason": "Confirm whether the monitoring report was registered by an accredited auditor for this project.",
+      "result": {
+        "status": "MISATTRIBUTED",
+        "items": [
+          {
+            "type": "monitoring-report",
+            "registered": true,
+            "issuedFor": "cookstove-ke-001",
+            "auditor": "Auditor A (synthetic)",
+            "matchesThisProject": false
+          }
+        ]
+      }
+    },
+    {
+      "tool": "check_overlap",
+      "reason": "Check whether this project's boundary and monitoring period overlap other registered projects.",
+      "result": []
+    },
+    {
+      "tool": "find_reused_evidence",
+      "reason": "Check whether this evidence text is identical to other submissions.",
+      "result": [
+        {
+          "relatedProjectId": "cookstove-ke-001"
+        }
+      ]
+    },
+    {
+      "tool": "find_similar_evidence",
+      "reason": "Check whether this evidence is near-identical to other submissions.",
+      "result": [
+        {
+          "relatedProjectId": "cookstove-ke-001",
+          "similarity": 1
+        }
+      ]
+    },
+    {
+      "tool": "compare_baseline",
+      "reason": "Compare the claimed 150 tCO2e reduction against the plausible range for cookstove methodology.",
+      "result": {
+        "hectares": 123.6,
+        "claimedPerHa": 1.21,
+        "plausibleRange": [
+          0.2,
+          3
+        ],
+        "withinRange": true
+      }
+    },
+    {
+      "tool": "lookup_developer_history",
+      "reason": "Review past verifier decisions for the submitting developer given the copied report.",
+      "result": [
+        {
+          "projectId": "forest-br-004",
+          "status": "REJECTED",
+          "flags": [
+            "INFLATED_BASELINE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        },
+        {
+          "projectId": "methane-br-001-copy1",
+          "status": "REJECTED",
+          "flags": [
+            "REUSED_EVIDENCE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        },
+        {
+          "projectId": "forest-tr-002",
+          "status": "REJECTED",
+          "flags": [
+            "OVERLAPPING_PROJECT",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        }
+      ]
+    }
+  ],
+  "attestation": {
+    "projectId": "cookstove-ke-004",
+    "status": "REJECTED",
+    "confidence": 0.95,
+    "riskFlags": [
+      {
+        "type": "REUSED_EVIDENCE",
+        "severity": "HIGH",
+        "detail": "The monitoring report is textually identical (similarity 1.0) to the report on cookstove-ke-001 and is registered to that project, not this one (provenance: MISATTRIBUTED). The same evidence is being used to claim credits twice."
+      },
+      {
+        "type": "UNVERIFIED_EVIDENCE",
+        "severity": "HIGH",
+        "detail": "The only evidence submitted for cookstove-ke-004 was issued for another project by another auditor's registration, so no report verifiably covers this project's 2026-01-01 to 2026-06-30 monitoring period."
+      },
+      {
+        "type": "INCONSISTENT_EVIDENCE",
+        "severity": "MEDIUM",
+        "detail": "The report describes 2,300 stoves in Kibera and firewood use falling from 6.1 to 3.4 kg/day, but it was issued for cookstove-ke-001 and does not reference this project. Its monitoring period and this submission's period are not shown to match."
+      },
+      {
+        "type": "INCONSISTENT_EVIDENCE",
+        "severity": "MEDIUM",
+        "detail": "Developer opportunist-dev has three prior REJECTED projects (forest-br-004: inflated baseline and inconsistent evidence; methane-br-001-copy1: reused evidence; forest-tr-002: overlapping project)."
+      }
+    ],
+    "recommendedAction": "FREEZE_CREDIT_MINTING",
+    "approvedReduction": 0,
+    "explanation": "The only monitoring report submitted for this project is an exact copy of the report registered to a different project (cookstove-ke-001), so it does not prove any reduction here. The developer also has a history of rejected projects with reused evidence, inflated baselines, and overlaps, so no credits should be minted."
+  }
+}

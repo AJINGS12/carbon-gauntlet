@@ -1,0 +1,125 @@
+{
+  "key": "d8310c57cf3416fd",
+  "model": "claude-haiku-5-5",
+  "recordedAt": "2026-10-15T17:19:41.275Z",
+  "steps": [
+    {
+      "tool": "check_evidence_provenance",
+      "reason": "Confirm whether this submission's monitoring reports were registered by an accredited auditor for this project.",
+      "result": {
+        "status": "MISATTRIBUTED",
+        "items": [
+          {
+            "type": "monitoring-report",
+            "registered": true,
+            "issuedFor": "forest-tr-005",
+            "auditor": "Auditor A (synthetic)",
+            "matchesThisProject": false
+          }
+        ]
+      }
+    },
+    {
+      "tool": "check_overlap",
+      "reason": "Check whether this project's boundary and monitoring period overlap any registered project.",
+      "result": []
+    },
+    {
+      "tool": "find_reused_evidence",
+      "reason": "Check whether this evidence text is identical to text submitted by other projects.",
+      "result": [
+        {
+          "relatedProjectId": "forest-tr-005"
+        }
+      ]
+    },
+    {
+      "tool": "find_similar_evidence",
+      "reason": "Check whether this evidence is near-identical to other submissions.",
+      "result": [
+        {
+          "relatedProjectId": "forest-tr-005",
+          "similarity": 1
+        }
+      ]
+    },
+    {
+      "tool": "compare_baseline",
+      "reason": "Check whether the claimed reduction per hectare is plausible for reforestation.",
+      "result": {
+        "hectares": 98.9,
+        "claimedPerHa": 2.53,
+        "plausibleRange": [
+          0.5,
+          6
+        ],
+        "withinRange": true
+      }
+    },
+    {
+      "tool": "lookup_developer_history",
+      "reason": "Evidence is a copy of forest-tr-005's reports, so check this developer's past verifier decisions for a pattern.",
+      "result": [
+        {
+          "projectId": "forest-br-004",
+          "status": "REJECTED",
+          "flags": [
+            "INFLATED_BASELINE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        },
+        {
+          "projectId": "methane-br-001-copy1",
+          "status": "REJECTED",
+          "flags": [
+            "REUSED_EVIDENCE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        },
+        {
+          "projectId": "forest-tr-002",
+          "status": "REJECTED",
+          "flags": [
+            "OVERLAPPING_PROJECT",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        },
+        {
+          "projectId": "cookstove-ke-004",
+          "status": "REJECTED",
+          "flags": [
+            "REUSED_EVIDENCE",
+            "INCONSISTENT_EVIDENCE",
+            "INCONSISTENT_EVIDENCE"
+          ]
+        }
+      ]
+    }
+  ],
+  "attestation": {
+    "projectId": "forest-tr-005-copy1",
+    "status": "REJECTED",
+    "confidence": 0.95,
+    "riskFlags": [
+      {
+        "type": "REUSED_EVIDENCE",
+        "severity": "HIGH",
+        "relatedProjectId": "forest-tr-005",
+        "detail": "The monitoring report text is identical (similarity 1.0) to the evidence already submitted for forest-tr-005. Provenance check shows the report was issued for forest-tr-005 (Auditor A), not this project, so it is a copy."
+      },
+      {
+        "type": "UNVERIFIED_EVIDENCE",
+        "severity": "HIGH",
+        "detail": "Provenance check returned MISATTRIBUTED: the monitoring report is registered to another project and does not match forest-tr-005-copy1, so it cannot support this claim."
+      },
+      {
+        "type": "INCONSISTENT_EVIDENCE",
+        "severity": "MEDIUM",
+        "detail": "Developer opportunist-dev has four prior REJECTED projects (forest-br-004, methane-br-001-copy1, forest-tr-002, cookstove-ke-004) with flags including inflated baseline, reused evidence, overlapping projects and inconsistent evidence."
+      }
+    ],
+    "recommendedAction": "FREEZE_CREDIT_MINTING",
+    "approvedReduction": 0,
+    "explanation": "The only evidence submitted for this claim is a copy of a monitoring report issued for a different project (forest-tr-005), so it cannot support the 250 tCO2e claim. The developer has a history of rejected projects with similar problems, so no credits should be minted."
+  }
+}

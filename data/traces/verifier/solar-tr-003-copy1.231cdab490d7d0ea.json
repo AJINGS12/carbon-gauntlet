@@ -1,0 +1,85 @@
+{
+  "key": "231cdab490d7d0ea",
+  "model": "claude-haiku-5-5",
+  "recordedAt": "2026-10-15T17:19:52.250Z",
+  "steps": [
+    {
+      "tool": "check_evidence_provenance",
+      "reason": "Confirm whether the monitoring report was registered by an accredited auditor for this project.",
+      "result": {
+        "status": "MISATTRIBUTED",
+        "items": [
+          {
+            "type": "monitoring-report",
+            "registered": true,
+            "issuedFor": "solar-tr-003",
+            "auditor": "Auditor A (synthetic)",
+            "matchesThisProject": false
+          }
+        ]
+      }
+    },
+    {
+      "tool": "check_overlap",
+      "reason": "Check whether this project's boundary and monitoring period overlap another registered project.",
+      "result": []
+    },
+    {
+      "tool": "find_reused_evidence",
+      "reason": "Check whether identical evidence text was submitted by other projects.",
+      "result": [
+        {
+          "relatedProjectId": "solar-tr-003"
+        }
+      ]
+    },
+    {
+      "tool": "find_similar_evidence",
+      "reason": "Check whether near-identical evidence text exists in other submissions.",
+      "result": [
+        {
+          "relatedProjectId": "solar-tr-003",
+          "similarity": 1
+        }
+      ]
+    },
+    {
+      "tool": "compare_baseline",
+      "reason": "Compare the claimed reduction per hectare against the plausible range for solar methodology.",
+      "result": {
+        "hectares": 94.8,
+        "claimedPerHa": 7.38,
+        "plausibleRange": [
+          1,
+          15
+        ],
+        "withinRange": true
+      }
+    }
+  ],
+  "attestation": {
+    "projectId": "solar-tr-003-copy1",
+    "status": "REJECTED",
+    "confidence": 0.95,
+    "riskFlags": [
+      {
+        "type": "REUSED_EVIDENCE",
+        "severity": "HIGH",
+        "detail": "The monitoring report text is identical to evidence from solar-tr-003 (similarity 1.0). Provenance check shows the report was registered for solar-tr-003 by Auditor A, not for this project, so this submission is a copy."
+      },
+      {
+        "type": "UNVERIFIED_EVIDENCE",
+        "severity": "HIGH",
+        "detail": "Provenance check returned MISATTRIBUTED: the only supporting report was issued for another project and does not match this project."
+      },
+      {
+        "type": "INCONSISTENT_EVIDENCE",
+        "severity": "LOW",
+        "detail": "The stated figures do not quite reconcile: 1,480 MWh x 0.47 tCO2/MWh = 695.6 tCO2e, not the 700 tCO2e claimed."
+      }
+    ],
+    "recommendedAction": "FREEZE_CREDIT_MINTING",
+    "approvedReduction": 0,
+    "explanation": "The monitoring report submitted for this project is an exact copy of a report issued for a different project (solar-tr-003), and the provenance check confirms it was not registered for this project. Because the only supporting evidence is copied, no credits can be verified, so minting should be frozen and the claim rejected."
+  }
+}

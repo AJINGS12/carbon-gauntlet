@@ -1,0 +1,78 @@
+{
+  "key": "3a8f787d11fd7b5f",
+  "model": "claude-haiku-5-5",
+  "recordedAt": "2026-10-15T17:18:47.458Z",
+  "steps": [
+    {
+      "tool": "check_evidence_provenance",
+      "reason": "Confirm whether the monitoring report was registered by an accredited auditor for this project.",
+      "result": {
+        "status": "UNVERIFIED",
+        "items": [
+          {
+            "type": "monitoring-report",
+            "registered": false
+          }
+        ]
+      }
+    },
+    {
+      "tool": "check_overlap",
+      "reason": "Check whether this project's boundary and monitoring period overlap other registered projects.",
+      "result": []
+    },
+    {
+      "tool": "find_reused_evidence",
+      "reason": "Check whether identical evidence text was submitted by other projects.",
+      "result": []
+    },
+    {
+      "tool": "find_similar_evidence",
+      "reason": "Check whether near-identical evidence text appears in other projects.",
+      "result": [
+        {
+          "relatedProjectId": "solar-ke-002",
+          "similarity": 0.83
+        }
+      ]
+    },
+    {
+      "tool": "compare_baseline",
+      "reason": "Verify whether the claimed reduction per hectare/unit is plausible for the solar methodology.",
+      "result": {
+        "hectares": 113.4,
+        "claimedPerHa": 3.97,
+        "plausibleRange": [
+          1,
+          15
+        ],
+        "withinRange": true
+      }
+    },
+    {
+      "tool": "lookup_developer_history",
+      "reason": "Review past verifier decisions for this developer, given the high-similarity evidence match and unverified report.",
+      "result": []
+    }
+  ],
+  "attestation": {
+    "projectId": "solar-br-005",
+    "status": "REVIEW_REQUIRED",
+    "confidence": 0.6,
+    "riskFlags": [
+      {
+        "type": "UNVERIFIED_EVIDENCE",
+        "severity": "HIGH",
+        "detail": "The monitoring report is not registered with an accredited auditor (provenance status UNVERIFIED), so its authorship cannot be confirmed for this project."
+      },
+      {
+        "type": "SIMILAR_EVIDENCE",
+        "severity": "MEDIUM",
+        "detail": "Evidence text has 0.83 similarity to project solar-ke-002 (threshold 0.6). This is near-identical but not an exact copy, so it is not proven reuse. Direction of copying is unknown since provenance is unverified."
+      }
+    ],
+    "recommendedAction": "REQUEST_EVIDENCE",
+    "approvedReduction": 0,
+    "explanation": "The monitoring report could not be traced to an accredited auditor for this project, and its text is 83% similar to a report from a separate Kenyan solar project. The arithmetic is internally consistent (610 MWh × 0.74 ≈ 451 tCO2e against a claimed 450), there is no boundary overlap, and the claimed intensity is within the plausible range, but the unresolved provenance means credits should not be minted until the developer supplies auditor-registered evidence."
+  }
+}
