@@ -23,8 +23,8 @@ type BatchStatus = "ACTIVE" | "FROZEN" | "RETIRED";
 
 /** In-memory ledger with the same rules as contracts/CreditRegistry.sol. */
 export class MockLedger implements ChainAdapter {
-  private projects = new Map<string, { developer: string; hostCountry: string; status?: string; attested: number; minted: number }>();
-  private boundaryKeys = new Set<string>();
+  private projects = new Map<string, { developer: string; hostCountry: string; boundaryKey: string; status?: string; attested: number; minted: number }>();
+  private boundaryOwner = new Map<string, string>();   // reserved only by APPROVED projects (as in the contract)
   private evidenceOwner = new Map<string, string>();
   private batches = new Map<number, { projectId: string; owner: string; status: BatchStatus; adjusted: boolean }>();
   private nextBatchId = 1;
@@ -39,10 +39,9 @@ export class MockLedger implements ChainAdapter {
 
   async registerProject(p: Parameters<ChainAdapter["registerProject"]>[0]) {
     if (this.projects.has(p.projectId)) return this.no("ProjectExists");
-    const key = `${p.boundaryHash}:${p.periodStart}:${p.periodEnd}`;
-    if (this.strict && this.boundaryKeys.has(key)) return this.no("DuplicateBoundaryAndPeriod");
-    this.boundaryKeys.add(key);
-    this.projects.set(p.projectId, { developer: p.developer, hostCountry: p.hostCountry, attested: 0, minted: 0 });
+    const boundaryKey = `${p.boundaryHash}:${p.periodStart}:${p.periodEnd}`;
+    if (this.strict && this.boundaryOwner.has(boundaryKey)) return this.no("DuplicateBoundaryAndPeriod");
+    this.projects.set(p.projectId, { developer: p.developer, hostCountry: p.hostCountry, boundaryKey, attested: 0, minted: 0 });
     return this.ok();
   }
 
@@ -51,7 +50,12 @@ export class MockLedger implements ChainAdapter {
     if (!p) return this.no("ProjectUnknown");
     const original = this.evidenceOwner.get(evidenceHash);
     if (this.strict && original && original !== projectId) return this.no(`EvidenceReused(${original})`);
-    if (!original) this.evidenceOwner.set(evidenceHash, projectId);
+    if (status === "APPROVED") {
+      const landOwner = this.boundaryOwner.get(p.boundaryKey);
+      if (this.strict && landOwner && landOwner !== projectId) return this.no("DuplicateBoundaryAndPeriod");
+      if (!original) this.evidenceOwner.set(evidenceHash, projectId);
+      if (!landOwner) this.boundaryOwner.set(p.boundaryKey, projectId);
+    }
     Object.assign(p, { status, attested });
     return this.ok();
   }

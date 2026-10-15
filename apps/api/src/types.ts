@@ -27,6 +27,7 @@ export const RISK_FLAG_TYPES = [
   "INFLATED_BASELINE",
   "INCONSISTENT_EVIDENCE",
   "MANIPULATION_ATTEMPT", // evidence contains instructions aimed at the verifier
+  "UNVERIFIED_EVIDENCE",  // report not registered by an accredited auditor
 ] as const;
 
 export const RiskFlagSchema = z.object({

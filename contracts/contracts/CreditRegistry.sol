@@ -25,6 +25,7 @@ contract CreditRegistry {
         bytes32 evidenceHash;
         uint256 attestedReduction;   // tCO2e approved by the verifier
         uint256 minted;              // tCO2e minted so far
+        bytes32 boundaryKey;         // keccak(boundaryHash, periodStart, periodEnd)
         bool exists;
     }
 
@@ -44,8 +45,10 @@ contract CreditRegistry {
     mapping(address => bool) public isOperator;
 
     mapping(bytes32 => Project) public projects;
-    mapping(bytes32 => bool) public boundaryPeriodUsed;  // keccak(boundaryHash, start, end)
-    mapping(bytes32 => bytes32) public evidenceOwner;    // evidenceHash => projectId
+    // Reserved only by APPROVED projects, so a rejected or pending copy filed first can't
+    // lock out the genuine owner (evidence squatting, found by the Carbon Gauntlet agents).
+    mapping(bytes32 => bytes32) public boundaryOwner;    // boundaryKey => approved projectId
+    mapping(bytes32 => bytes32) public evidenceOwner;    // evidenceHash => approved projectId
     mapping(uint256 => Batch) public batches;
     mapping(bytes32 => bytes32) public runAnchors;       // runId => runHash
     uint256 public nextBatchId = 1;
@@ -102,8 +105,7 @@ contract CreditRegistry {
         if (projects[projectId].exists) revert ProjectExists();
 
         bytes32 key = keccak256(abi.encodePacked(boundaryHash, periodStart, periodEnd));
-        if (strictMode && boundaryPeriodUsed[key]) revert DuplicateBoundaryAndPeriod();
-        boundaryPeriodUsed[key] = true;
+        if (strictMode && boundaryOwner[key] != bytes32(0)) revert DuplicateBoundaryAndPeriod();
 
         Project storage p = projects[projectId];
         p.developer = developer;
@@ -111,13 +113,15 @@ contract CreditRegistry {
         p.boundaryHash = boundaryHash;
         p.periodStart = periodStart;
         p.periodEnd = periodEnd;
+        p.boundaryKey = key;
         p.exists = true;
 
         emit ProjectRegistered(projectId, developer, hostCountry, boundaryHash);
     }
 
     /// @notice Records the AI verifier's attestation. Partial overlaps are judged off-chain by the
-    ///         verifier (polygon geometry); exact evidence reuse is also blocked here on-chain.
+    ///         verifier (polygon geometry); evidence or a boundary already owned by another APPROVED
+    ///         project is also blocked here on-chain. Only an approval reserves them.
     function submitAttestation(
         bytes32 projectId,
         AttestationStatus status,
@@ -129,7 +133,12 @@ contract CreditRegistry {
 
         bytes32 original = evidenceOwner[evidenceHash];
         if (strictMode && original != bytes32(0) && original != projectId) revert EvidenceReused(original);
-        if (original == bytes32(0)) evidenceOwner[evidenceHash] = projectId;
+        if (status == AttestationStatus.Approved) {
+            bytes32 landOwner = boundaryOwner[p.boundaryKey];
+            if (strictMode && landOwner != bytes32(0) && landOwner != projectId) revert DuplicateBoundaryAndPeriod();
+            if (original == bytes32(0)) evidenceOwner[evidenceHash] = projectId;
+            if (landOwner == bytes32(0)) boundaryOwner[p.boundaryKey] = projectId;
+        }
 
         p.status = status;
         p.evidenceHash = evidenceHash;

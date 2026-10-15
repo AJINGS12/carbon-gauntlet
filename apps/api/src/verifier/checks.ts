@@ -1,5 +1,5 @@
 import type { Attestation, Project, RiskFlag } from "../types.js";
-import { checkOverlap, compareBaseline, detectManipulation, findReusedEvidence, findSimilarEvidence } from "./tools.js";
+import { checkEvidenceProvenance, checkOverlap, compareBaseline, detectManipulation, findReusedEvidence, findSimilarEvidence } from "./tools.js";
 
 /**
  * Deterministic guardrail checks. They run on EVERY submission, whatever the LLM decides,
@@ -18,15 +18,30 @@ export function runChecks(project: Project, registry: Project[]): { flags: RiskF
   for (const o of overlaps)
     rule({ type: "OVERLAPPING_PROJECT", severity: o.overlapPct >= 10 ? "HIGH" : "MEDIUM", relatedProjectId: o.relatedProjectId, detail: `${o.overlapPct}% of the area overlaps ${o.relatedProjectId} during the monitoring period` });
 
+  // Provenance first: it decides who owns a report, independent of filing order.
+  const provenance = checkEvidenceProvenance(project);
+  steps.push({ tool: "check_evidence_provenance", reason: "Check each report was issued by an accredited auditor for this project", result: provenance });
+  for (const i of provenance.items)
+    if (i.registered && !i.matchesThisProject)
+      rule({ type: "REUSED_EVIDENCE", severity: "HIGH", relatedProjectId: i.issuedFor, detail: `The ${i.type} was issued for ${i.issuedFor}, not this project` });
+  if (provenance.status === "UNVERIFIED")
+    rule({ type: "UNVERIFIED_EVIDENCE", severity: "MEDIUM", detail: "At least one report is not registered by an accredited auditor" });
+
+  // Text matching. If this project's reports are verified as its own, any match means the OTHER
+  // submission copied them, so this project is not flagged (no first-to-file advantage for copiers).
+  const ownsReports = provenance.status === "VERIFIED";
   const reused = findReusedEvidence(project, registry);
-  steps.push({ tool: "find_reused_evidence", reason: "Look for evidence files already submitted by another project", result: reused });
-  for (const r of reused)
-    rule({ type: "REUSED_EVIDENCE", severity: "HIGH", relatedProjectId: r.relatedProjectId, detail: `Evidence is identical to ${r.relatedProjectId}` });
+  steps.push({ tool: "find_reused_evidence", reason: "Look for evidence files already submitted by another project", result: ownsReports && reused.length ? { matches: reused, note: "this project's reports are verified as its own; the matching submissions copied them" } : reused });
+  if (!ownsReports)
+    for (const r of reused)
+      if (!flags.some((f) => f.type === "REUSED_EVIDENCE" && f.relatedProjectId === r.relatedProjectId))
+        rule({ type: "REUSED_EVIDENCE", severity: "HIGH", relatedProjectId: r.relatedProjectId, detail: `Evidence is identical to ${r.relatedProjectId}` });
 
   const similar = findSimilarEvidence(project, registry).filter((s) => !reused.some((r) => r.relatedProjectId === s.relatedProjectId));
   steps.push({ tool: "find_similar_evidence", reason: "Look for near-copies of the evidence text", result: similar });
-  for (const s of similar)
-    rule({ type: "SIMILAR_EVIDENCE", severity: "MEDIUM", relatedProjectId: s.relatedProjectId, detail: `Evidence is ${Math.round(s.similarity * 100)}% similar to ${s.relatedProjectId}` });
+  if (!ownsReports)
+    for (const s of similar)
+      rule({ type: "SIMILAR_EVIDENCE", severity: "MEDIUM", relatedProjectId: s.relatedProjectId, detail: `Evidence is ${Math.round(s.similarity * 100)}% similar to ${s.relatedProjectId}` });
 
   const baseline = compareBaseline(project);
   steps.push({ tool: "compare_baseline", reason: "Check the claimed reduction is plausible for the methodology and area", result: baseline });
@@ -53,7 +68,9 @@ const SEVERITY = { LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
 
 // Factual findings that only a tool can establish. A model flag of these types must be backed
 // by a matching rule finding, otherwise it contradicts the tool results and is removed.
-const TOOL_BACKED = new Set<RiskFlag["type"]>(["OVERLAPPING_PROJECT", "REUSED_EVIDENCE"]);
+// SIMILAR/UNVERIFIED are included so the model can't block a project whose reports are verified
+// as its own just because a copier filed a near-identical report first.
+const TOOL_BACKED = new Set<RiskFlag["type"]>(["OVERLAPPING_PROJECT", "REUSED_EVIDENCE", "SIMILAR_EVIDENCE", "UNVERIFIED_EVIDENCE"]);
 
 const sameFinding = (a: RiskFlag, b: RiskFlag) =>
   a.type === b.type && (!a.relatedProjectId || !b.relatedProjectId || a.relatedProjectId === b.relatedProjectId);
@@ -84,7 +101,12 @@ export function applyGuardrails(llm: Attestation, project: Project, ruleFlags: R
     }
   }
 
-  const candidates: Attestation["status"][] = [llm.status, verdictFor(ruleFlags).status];
+  // Every verdict needs evidence: if the model's stricter verdict rested ONLY on findings the tools
+  // contradict (all its flags were removed), it falls back to what the evidence supports.
+  const unsupported = llm.status !== "APPROVED" && dropped.length > 0 && !flags.some((f) => f.source === "llm");
+  const modelStatus: Attestation["status"] = unsupported ? "APPROVED" : llm.status;
+  if (unsupported) notes.push(`model verdict ${llm.status} rested only on removed findings`);
+  const candidates: Attestation["status"][] = [modelStatus, verdictFor(ruleFlags).status];
   if (flags.some((f) => f.severity === "HIGH")) candidates.push("REJECTED");
   const status = candidates.reduce((a, b) => (RANK[b] > RANK[a] ? b : a));
   if (status !== llm.status) notes.push(`verdict raised from ${llm.status} to ${status}`);
@@ -96,7 +118,7 @@ export function applyGuardrails(llm: Attestation, project: Project, ruleFlags: R
     riskFlags: flags,
     recommendedAction: status === "APPROVED" ? "ALLOW_MINTING" : status === "REJECTED" ? "FREEZE_CREDIT_MINTING" : "REQUEST_EVIDENCE",
     // 1 credit = 1 whole tCO2e and the contract stores integers, so round DOWN (never over-issue).
-    approvedReduction: status === "APPROVED" ? Math.floor(Math.min(llm.approvedReduction, project.claimedReduction)) : 0,
+    approvedReduction: status === "APPROVED" ? Math.floor(Math.min(unsupported ? project.claimedReduction : llm.approvedReduction, project.claimedReduction)) : 0,
     explanation: notes.length ? `${llm.explanation} [Guardrail: ${notes.join("; ")}.]` : llm.explanation,
     guardrailOverride: notes.length > 0,
   };

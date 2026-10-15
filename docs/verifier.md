@@ -4,10 +4,11 @@ The verifier decides whether a carbon-credit claim may be minted. It is an **AI 
 
 ## How a verdict is made
 
-1. **Investigation (Claude, tool use).** The model reads the submission and chooses which tools to call, up to 6, explaining each call in one sentence. Those sentences are the investigation trace shown in the Arena.
+1. **Investigation (Claude, tool use).** The model reads the submission and chooses which tools to call, up to 7, explaining each call in one sentence. Those sentences are the investigation trace shown in the Arena.
 
    | Tool | What it checks |
    | --- | --- |
+   | `check_evidence_provenance` | Each report registered by an accredited auditor for THIS project? (simulated MRV registry) |
    | `check_overlap` | Boundary polygon and monitoring period vs. projects already registered (Turf.js) |
    | `find_reused_evidence` | Identical evidence text (SHA-256) |
    | `find_similar_evidence` | Near-copies (word-shingle Jaccard similarity ≥ 0.6) |
@@ -16,6 +17,7 @@ The verifier decides whether a carbon-credit claim may be minted. It is an **AI 
    | `submit_attestation` | Final verdict, schema-validated (Zod) |
 
 2. **Guardrails (code).** The same checks also run deterministically on every submission, plus a scan for instructions aimed at the verifier (prompt injection). Then:
+   - report ownership comes from provenance, not filing order: a copy is caught whoever files first, and a genuine project is never flagged because a copier filed first;
    - model findings that the tools contradict (an overlap or reused evidence the tools didn't find) are removed, so every factual flag is backed by evidence;
    - rule findings the model missed are added, and findings it under-rated are raised to the rule severity;
    - the **stricter** verdict wins, so the model can be stricter than the rules but never more lenient;
@@ -32,7 +34,7 @@ The verifier decides whether a carbon-credit claim may be minted. It is an **AI 
 | No API key | Rule checks only (`engine: "rules"`) |
 | API error or timeout | Logged as a `fallback` step, then rule checks |
 | Invalid model output | Same as API error |
-| Model loops on tools | Verdict forced after 6 tool calls |
+| Model loops on tools | Verdict forced after 7 tool calls |
 | Demo mode | Replays a recorded investigation for the exact same submission; rule checks if none matches. Never calls the API |
 
 ## Prompt-injection defence
@@ -42,7 +44,7 @@ Evidence is written by the applicant, so it is treated as untrusted data: it is 
 ## Verify it yourself
 
 ```bash
-npm test -w apps/api                              # 21 verifier tests (scripted fake model) + 4 simulation tests
+npm test -w apps/api                              # verifier, agents and simulation tests (scripted fake model)
 npm run eval:verifier -w apps/api -- --rules      # all 12 seed projects, rules only
 npm run eval:verifier -w apps/api                 # same with the live model (needs ANTHROPIC_API_KEY)
 npm run eval:verifier -w apps/api -- --record     # live, and save traces for demo mode

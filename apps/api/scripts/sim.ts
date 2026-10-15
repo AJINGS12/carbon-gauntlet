@@ -16,11 +16,11 @@ else process.env.DEMO_MODE = "false";
 if (args.has("--record")) process.env.RECORD_TRACES = "true";
 
 const { createRun, playRound, MAX_ROUNDS } = await import("../src/engine/run.js");
-const { DEFAULT_MODEL } = await import("../src/llm/client.js");
+const { AGENT_MODEL, VERIFIER_MODEL } = await import("../src/llm/client.js");
 type ArenaEvent = import("../src/types.js").ArenaEvent;
 type Metrics = import("../src/types.js").Metrics;
 
-const engine = args.has("--demo") ? "demo replay" : process.env.ANTHROPIC_API_KEY ? `live model (${DEFAULT_MODEL})` : "scripted agents, rule-based verifier (no API key)";
+const engine = args.has("--demo") ? "demo replay" : process.env.ANTHROPIC_API_KEY ? `live models (agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL})` : "scripted agents, rule-based verifier (no API key)";
 console.log(`Carbon Gauntlet simulation · ${engine}${args.has("--record") ? " · recording" : ""}\n`);
 
 const summary: Record<string, { metrics: Metrics; replans: number; fallbacks: number; sources: Set<string> }> = {};

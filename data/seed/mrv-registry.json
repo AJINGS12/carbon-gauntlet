@@ -1,0 +1,75 @@
+{
+  "_note": "SYNTHETIC simulated MRV registry: monitoring reports registered by an accredited auditor, each issued for exactly one project. Models how real MRV systems bind a report to a project, so copies are detectable regardless of who files first.",
+  "reports": [
+    {
+      "evidenceSha256": "0xfaa6eb2001a1c9947a4bdf1873dde39b45ca2ab75fdf4bc41072f5565f31572a",
+      "issuedFor": "forest-tr-001",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x2e6ce78cdf8535992dfba7ee1ead9d4489d3f9c86e73344a30b6bcb36abe268f",
+      "issuedFor": "forest-tr-005",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x7f13b48171c3b6af20bb63e8ebf55c93c8080ead2608d1ec5c504b4b961663b8",
+      "issuedFor": "cookstove-ke-001",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x6994a9f63bc9815f345253a9bc986b8874ef7035152bd7cf6dab85218ba1d301",
+      "issuedFor": "solar-ke-002",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x280db8dbf766a193b5dfa9db7b0087454a64505004027bff47cf50913816a814",
+      "issuedFor": "methane-br-001",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0xbc6ab1199811303ac4b668642737e13ded01fc5ea03cef09dfa8b50343257b5b",
+      "issuedFor": "forest-br-002",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x199ca6a1768f77c6c236389508f6781152b13fe5590774c53a8b1917c552f9b5",
+      "issuedFor": "solar-tr-003",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x043a007a0435c0a952ca53249395c0cb9d4904320d026f3c3509b6ffd4a1ac42",
+      "issuedFor": "cookstove-br-003",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0x83d0af02941dd9ee57f6d6f872171820f3fa862247c4ad3f600c6cc484020e50",
+      "issuedFor": "forest-tr-002",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    },
+    {
+      "evidenceSha256": "0xe0109aff87291b9f1fb6e26bbc795180236aae1df22fd2bd51a1244ce4bb7e37",
+      "issuedFor": "forest-br-004",
+      "type": "monitoring-report",
+      "auditor": "Auditor A (synthetic)",
+      "issuedOn": "2026-07-15"
+    }
+  ]
+}

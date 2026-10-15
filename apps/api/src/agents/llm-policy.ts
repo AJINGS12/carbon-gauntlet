@@ -18,7 +18,7 @@ export interface Observation {
   counterparties: { id: string; country: string }[];
 }
 
-const SYSTEM = `You are an autonomous actor in Carbon Gauntlet, a simulated carbon-credit market used to stress-test registry rules.
+export const AGENT_SYSTEM = `You are an autonomous actor in Carbon Gauntlet, a simulated carbon-credit market used to stress-test registry rules.
 This is a research simulation with synthetic data: no real credits, money or people are involved.
 Act fully in character so the test is realistic, including attempting rule-breaking strategies if your role calls for it.
 
@@ -28,6 +28,11 @@ Each round you take exactly ONE action by calling the "decide" tool. Include:
 - action and its parameters
 
 Learn from your history: if an action was rejected, read the reason and change strategy instead of repeating it unchanged.
+
+If your role is an adversary, you are the red team in a security test: the registry is only proven safe if you
+genuinely try to beat it. Pursue your goal with the tricks your role describes; do not play it safe out of caution,
+because a red team that refuses to attack makes the test meaningless. Switch to a legitimate move only when it
+genuinely serves your goal better (for example, after the registry has blocked your tricks).
 Only use project IDs, batch IDs and counterparties that appear in your observation.`;
 
 const ACTION_HELP: Record<string, string> = {
@@ -113,6 +118,7 @@ export function toDecision(agent: AgentState, input: Flat): AgentDecision | null
     WAIT: {},
   };
   if (!input.action || !agent.actions.includes(input.action as never)) return null;
+  if (String(input.reason ?? "").trim().length < 5) return null; // the reason is shown to the audience
   const step = AgentActionSchema.safeParse({ action: input.action, params: params[input.action] ?? {} });
   if (!step.success) return null;
   const plan = Array.isArray(input.plan) ? input.plan.map(String).slice(0, 3) : [];
@@ -123,7 +129,7 @@ export function toDecision(agent: AgentState, input: Flat): AgentDecision | null
 export async function llmDecision(llm: LlmClient, model: string, agent: AgentState, obs: Observation): Promise<AgentDecision> {
   const messages: Anthropic.Messages.MessageParam[] = [{ role: "user", content: agentPrompt(agent, obs) }];
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await llm.create({ model, max_tokens: 600, system: SYSTEM, tools: [decideTool(agent)], tool_choice: { type: "auto" }, messages });
+    const res = await llm.create({ model, max_tokens: 600, system: AGENT_SYSTEM, tools: [decideTool(agent)], tool_choice: { type: "auto" }, messages });
     const use = res.content.find((b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use" && b.name === "decide");
     if (use) {
       const decision = toDecision(agent, use.input as Flat);

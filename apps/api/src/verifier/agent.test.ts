@@ -4,6 +4,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { ProjectSchema, type ArenaEvent, type Project } from "../types.js";
 import type { CreateParams, LlmClient, Message } from "../llm/client.js";
 import { MAX_STEPS, verifyProject, type VerifierContext } from "./agent.js";
+import { VERIFIER_TOOLS } from "./prompt.js";
 
 // ---------- fixtures: real seed data
 const seed: Project[] = JSON.parse(readFileSync(new URL("../../../../data/seed/projects.json", import.meta.url), "utf8")).projects.map((p: unknown) => ProjectSchema.parse(p));
@@ -75,7 +76,7 @@ describe("verifier agent — LLM tool-use loop", () => {
     const { client, requests } = fakeLlm([...Array(MAX_STEPS).fill(loop), [approve()]]);
     const att = await verifyProject(get("forest-tr-001"), ctx(), () => {}, { llm: client });
     expect(att.engine).toBe("llm");
-    expect(requests.slice(0, MAX_STEPS).every((r) => r.tools!.length === 6)).toBe(true);
+    expect(requests.slice(0, MAX_STEPS).every((r) => r.tools!.length === VERIFIER_TOOLS.length)).toBe(true);
     expect(requests[MAX_STEPS].tools!.map((t) => t.name)).toEqual(["submit_attestation"]);
   });
 
@@ -183,6 +184,31 @@ describe("verifier agent — guardrails", () => {
     expect(att.status).toBe("REVIEW_REQUIRED");
     expect(att.guardrailOverride).toBe(false);
     expect(att.riskFlags[0]).toMatchObject({ type: "INCONSISTENT_EVIDENCE", source: "llm" });
+  });
+});
+
+describe("verifier — order independence (found by the agents, 16 Oct live run)", () => {
+  it("rejects a copied report filed BEFORE the genuine one, and still approves the genuine owner later", async () => {
+    const copy = await verifyProject(get("cookstove-ke-004"), ctx(), () => {}, { llm: null });   // copy filed first, original not yet registered
+    expect(copy.status).toBe("REJECTED");
+    expect(copy.riskFlags).toContainEqual(expect.objectContaining({ type: "REUSED_EVIDENCE", relatedProjectId: "cookstove-ke-001" }));
+    const genuine = await verifyProject(get("cookstove-ke-001"), ctx("cookstove-ke-004"), () => {}, { llm: null });
+    expect(genuine.status).toBe("APPROVED");
+  });
+
+  it("does not let the model block a genuine owner over a copier's similar report", async () => {
+    const { client } = fakeLlm([[{ name: "submit_attestation", input: { status: "REVIEW_REQUIRED", confidence: 0.7, recommendedAction: "REQUEST_EVIDENCE", approvedReduction: 0, explanation: "Looks like solar-br-005.",
+      riskFlags: [{ type: "SIMILAR_EVIDENCE", severity: "MEDIUM", relatedProjectId: "solar-br-005", detail: "83% similar" }] } }]]);
+    const att = await verifyProject(get("solar-ke-002"), ctx("solar-br-005"), () => {}, { llm: client });
+    expect(att.riskFlags).toEqual([]);
+    expect(att.explanation).toMatch(/removed SIMILAR_EVIDENCE/);
+    expect(att).toMatchObject({ status: "APPROVED", approvedReduction: 450 }); // the REVIEW had no evidence left behind it
+  });
+
+  it("flags a fabricated look-alike as unverified, whoever files first", async () => {
+    const att = await verifyProject(get("solar-br-005"), ctx(), () => {}, { llm: null });
+    expect(att.status).toBe("REVIEW_REQUIRED");
+    expect(att.riskFlags.map((f) => f.type)).toContain("UNVERIFIED_EVIDENCE");
   });
 });
 

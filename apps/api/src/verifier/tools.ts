@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import * as turf from "@turf/turf";
 import type { Project } from "../types.js";
 
@@ -23,6 +24,27 @@ export function checkOverlap(project: Project, registry: Project[]) {
       return { relatedProjectId: other.projectId, overlapPct: pct };
     })
     .filter((r) => r.overlapPct > 0);
+}
+
+// ---------------------------------------------------------------- report provenance
+// Simulated MRV registry: each monitoring report is registered by an accredited auditor for ONE
+// project. This is what makes copy detection independent of who files first (found by the agents:
+// an attacker filed a copied report before the genuine owner and locked the owner out).
+interface MrvReport { evidenceSha256: string; issuedFor: string; auditor: string; issuedOn: string }
+const MRV: Map<string, MrvReport> = new Map(
+  (JSON.parse(readFileSync(new URL("../../../../data/seed/mrv-registry.json", import.meta.url), "utf8")).reports as MrvReport[]).map((r) => [r.evidenceSha256, r]),
+);
+
+export type Provenance = "VERIFIED" | "MISATTRIBUTED" | "UNVERIFIED";
+
+/** Was each evidence item issued by an accredited auditor for THIS project? */
+export function checkEvidenceProvenance(project: Project) {
+  const items = project.evidence.map((e) => {
+    const r = MRV.get(sha256(e.text));
+    return r ? { type: e.type, registered: true, issuedFor: r.issuedFor, auditor: r.auditor, matchesThisProject: r.issuedFor === project.projectId } : { type: e.type, registered: false };
+  });
+  const status: Provenance = items.some((i) => i.registered && !i.matchesThisProject) ? "MISATTRIBUTED" : items.every((i) => i.registered) ? "VERIFIED" : "UNVERIFIED";
+  return { status, items };
 }
 
 /** Exact reuse: the same evidence text already belongs to another project. */
@@ -86,4 +108,4 @@ export function detectManipulation(project: Project) {
   return { suspicious: hits.length > 0, phrases: hits };
 }
 
-export const verifierTools = { checkOverlap, findReusedEvidence, findSimilarEvidence, compareBaseline, detectManipulation };
+export const verifierTools = { checkOverlap, findReusedEvidence, findSimilarEvidence, compareBaseline, detectManipulation, checkEvidenceProvenance };

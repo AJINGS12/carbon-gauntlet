@@ -11,7 +11,10 @@ export interface LlmClient {
   create(params: CreateParams): Promise<Message>;
 }
 
-export const DEFAULT_MODEL = process.env.LLM_MODEL || "claude-sonnet-5-5";
+export const DEFAULT_MODEL = process.env.LLM_MODEL || "claude-haiku-5-5";
+/** Optional per-role overrides, e.g. a stronger model only for the recorded demo's attackers. */
+export const AGENT_MODEL = process.env.AGENT_MODEL || DEFAULT_MODEL;
+export const VERIFIER_MODEL = process.env.VERIFIER_MODEL || DEFAULT_MODEL;
 const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS ?? 20_000);
 
 /** Real client, or null when no key is configured (callers then use their deterministic fallback). */

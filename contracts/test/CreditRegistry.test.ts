@@ -5,6 +5,7 @@ const id = (s: string) => ethers.encodeBytes32String(s);
 const TR = "0x5452"; // "TR"
 const DE = "0x4445"; // "DE"
 const APPROVED = 1;
+const REJECTED = 3;
 
 async function deploy(strict: boolean) {
   const [admin, dev, buyer] = await ethers.getSigners();
@@ -22,20 +23,33 @@ async function approvedBatch(strict: boolean) {
 }
 
 describe("CreditRegistry — Protected (strictMode = true)", () => {
-  it("rejects a second project with the same boundary and period", async () => {
+  it("rejects a project on the same boundary and period as an approved one", async () => {
     const { reg, dev } = await deploy(true);
     await reg.registerProject(id("p1"), dev.address, TR, id("b"), 1, 2);
+    await reg.submitAttestation(id("p1"), APPROVED, 100, id("ev1"));
     await expect(reg.registerProject(id("p2"), dev.address, TR, id("b"), 1, 2))
       .to.be.revertedWithCustomError(reg, "DuplicateBoundaryAndPeriod");
   });
 
-  it("rejects evidence already used by another project", async () => {
+  it("rejects evidence already owned by an approved project", async () => {
     const { reg, dev } = await deploy(true);
     await reg.registerProject(id("p1"), dev.address, TR, id("b1"), 1, 2);
     await reg.registerProject(id("p2"), dev.address, TR, id("b2"), 1, 2);
     await reg.submitAttestation(id("p1"), APPROVED, 100, id("ev"));
     await expect(reg.submitAttestation(id("p2"), APPROVED, 100, id("ev")))
       .to.be.revertedWithCustomError(reg, "EvidenceReused");
+  });
+
+  it("does not let a rejected copy filed first lock out the genuine owner (evidence squatting)", async () => {
+    const { reg, dev, buyer: squatter } = await deploy(true);
+    // The squatter files a copy of the genuine report and boundary first; the verifier rejects it.
+    await reg.registerProject(id("copy"), squatter.address, TR, id("b"), 1, 2);
+    await reg.submitAttestation(id("copy"), REJECTED, 0, id("ev"));
+    // The genuine owner files later and is still approved and can mint.
+    await reg.registerProject(id("genuine"), dev.address, TR, id("b"), 1, 2);
+    await reg.submitAttestation(id("genuine"), APPROVED, 150, id("ev"));
+    await expect(reg.mintCredits(id("genuine"), dev.address, 150)).to.emit(reg, "CreditsMinted");
+    expect(await reg.evidenceOwner(id("ev"))).to.equal(id("genuine"));
   });
 
   it("blocks minting before approval and above the attested amount", async () => {

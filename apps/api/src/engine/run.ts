@@ -8,7 +8,7 @@ import { ADDRESS, ROLES } from "../agents/roles.js";
 import { llmDecision, type Observation } from "../agents/llm-policy.js";
 import { decisionKey, loadRecording, saveRecording, type RunRecording } from "../agents/recordings.js";
 import { verifyProject, type HistoryEntry } from "../verifier/agent.js";
-import { createLlmClient, DEFAULT_MODEL, type LlmClient } from "../llm/client.js";
+import { createLlmClient, AGENT_MODEL, VERIFIER_MODEL, type LlmClient } from "../llm/client.js";
 import { sha256 } from "../verifier/tools.js";
 
 export const MAX_ROUNDS = 6;
@@ -86,7 +86,7 @@ export async function createRun(mode: Mode): Promise<Run> {
 
   run.agents = createAgents({ brokerBatch: minted["solar-ke-002"], coalTargetBatch: minted["methane-br-001"] });
   if (demoMode()) run.replay = loadRecording(mode);
-  else if (recording() && getLlm()) run.recording = { mode, model: DEFAULT_MODEL, recordedAt: new Date().toISOString(), decisions: {} };
+  else if (recording() && getLlm()) run.recording = { mode, model: `agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL}`, recordedAt: new Date().toISOString(), decisions: {} };
   runs.set(run.id, run);
   return run;
 }
@@ -185,7 +185,7 @@ async function chooseDecision(run: Run, agent: AgentState, emit: (e: ArenaEvent)
   const client = getLlm();
   if (!client) return script();
   try {
-    const decision = await llmDecision(client, DEFAULT_MODEL, agent, observe(run, agent));
+    const decision = await llmDecision(client, AGENT_MODEL, agent, observe(run, agent));
     if (run.recording) run.recording.decisions[decisionKey(run.round, agent.id)] = decision;
     return { decision };
   } catch (err) {
@@ -289,7 +289,8 @@ async function register(run: Run, agent: AgentState, p: Project, emit: (e: Arena
   recordHistory(run, p.developerId, { projectId: p.projectId, status: att.status, flags: att.riskFlags.map((f) => f.type) });
   const onChain = await chain.submitAttestation(p.projectId, att.status, att.approvedReduction, evidenceHash);
   if (!onChain.accepted) return onChain;
-  return att.status === "APPROVED" ? onChain : { accepted: false, reason: `Verifier ${att.status}: ${att.riskFlags.map((f) => f.type).join(", ")}`, txHash: onChain.txHash };
+  const why = att.riskFlags.length ? att.riskFlags.map((f) => f.type).join(", ") : "needs more evidence";
+  return att.status === "APPROVED" ? onChain : { accepted: false, reason: `Verifier ${att.status}: ${why}`, txHash: onChain.txHash };
 }
 
 async function execute(run: Run, agent: AgentState, step: AgentAction, emit: (e: ArenaEvent) => void): Promise<TxResult> {

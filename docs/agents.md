@@ -71,3 +71,19 @@ What the agents did on their own:
 - Coal Nation tried to count foreign credits with no corresponding adjustment. Blocked, it requested the adjustment and bought legally, and stayed compliant for the rest of the run.
 
 **Flaw found and fixed:** in the Unprotected run an agent said *"the registry approved my project without verification"*. The market view had labelled approvals `APPROVED (no verification)`, which revealed the mode. Approvals now read identically in both modes, with a regression test.
+
+## Second live run (16 Oct 2026, claude-haiku-5-5): the agents found a real flaw
+
+**Evidence squatting.** The Opportunist filed `cookstove-ke-004`, a copy of the honest developer's Kibera report, *before* the honest developer filed the original. The registry treated the first filer as the owner of that evidence, even though the copy was never approved, so the genuine owner was then blocked with `EvidenceReused(cookstove-ke-004)`. The scorecard caught it: *honest claims blocked: 1*.
+
+**Fix.** Ownership no longer depends on filing order:
+- Each monitoring report is registered by an accredited auditor for one project (a simulated MRV registry, `data/seed/mrv-registry.json`). A report issued for another project is caught as a copy whoever files first; an unregistered report is flagged `UNVERIFIED_EVIDENCE`.
+- If a project's reports are verified as its own, matching text elsewhere is attributed to the copier, and the genuine project is not flagged.
+- On-chain, only an **approved** project reserves evidence or a boundary, so a rejected or pending copy can't lock anyone out.
+- If the model blocks a project only on findings the tools contradict, that verdict falls back to what the evidence supports.
+
+Regression tests reproduce the exact sequence in the contract, the verifier and the full engine.
+
+**Remaining limitation:** overlapping *land* is still first-to-file. In practice that is settled by land-tenure records, which this prototype doesn't model.
+
+**Also observed:** on Haiku, some attackers played it safe (the Broker declined to cheat), and one decision had an empty reason. Attackers are now briefed as a red team whose refusal makes the test meaningless, and empty reasons are rejected and retried.

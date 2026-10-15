@@ -108,6 +108,19 @@ describe("model-driven agents", () => {
   });
 });
 
+describe("evidence squatting (reproduces the 16 Oct live run)", () => {
+  it("an attacker filing a copied report first cannot lock the genuine owner out", async () => {
+    const { client } = marketModel({
+      "opportunist-dev": (r) => (r === 1 ? { action: "REGISTER_PROJECT", projectId: "cookstove-ke-004" } : { action: "WAIT" }),
+      "honest-dev": (r) => (r === 2 ? { action: "REGISTER_PROJECT", projectId: "cookstove-ke-001" } : r === 3 ? { action: "MINT_CREDITS", projectId: "cookstove-ke-001", quantity: 150 } : { action: "WAIT" }),
+    });
+    const { events, metrics } = await play("PROTECTED", client);
+    expect(results(events, "opportunist-dev")[0]).toMatchObject({ accepted: false, attack: true });
+    expect(results(events, "honest-dev").map((e) => [e.action, e.accepted])).toEqual([["REGISTER_PROJECT", true], ["MINT_CREDITS", true]]);
+    expect(metrics.honestClaimsBlocked).toBe(0);
+  });
+});
+
 describe("recording and replay", () => {
   it("replays a recorded live run exactly, without calling the model", async () => {
     const script: Script = {
@@ -176,9 +189,10 @@ describe("observation and validation", () => {
     setLlmForTesting(null);
     const run = await createRun("PROTECTED");
     const coal = run.agents.find((a) => a.id === "coal-nation")!;
-    expect(toDecision(coal, { action: "REGISTER_PROJECT", projectId: "x", reason: "r", plan: [] })).toBeNull();
-    expect(toDecision(coal, { action: "BUY_CREDITS", reason: "r", plan: [] })).toBeNull();
-    expect(toDecision(coal, { action: "BUY_CREDITS", batchId: 2, reason: "r", plan: ["a", "b", "c", "d"] })).toMatchObject({ step: { action: "BUY_CREDITS", params: { batchId: 2 } }, plan: ["a", "b", "c"] });
+    expect(toDecision(coal, { action: "REGISTER_PROJECT", projectId: "x", reason: "Register it", plan: [] })).toBeNull();
+    expect(toDecision(coal, { action: "BUY_CREDITS", reason: "Buy something", plan: [] })).toBeNull();
+    expect(toDecision(coal, { action: "BUY_CREDITS", batchId: 2, reason: "", plan: [] })).toBeNull(); // empty reason seen in a live run
+    expect(toDecision(coal, { action: "BUY_CREDITS", batchId: 2, reason: "Buy the methane batch", plan: ["a", "b", "c", "d"] })).toMatchObject({ step: { action: "BUY_CREDITS", params: { batchId: 2 } }, plan: ["a", "b", "c"] });
   });
 
   it("classifies attacks from facts, not from what the agent intends", async () => {

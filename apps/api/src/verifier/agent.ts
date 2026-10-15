@@ -1,13 +1,13 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ArenaEvent, Attestation, Project } from "../types.js";
 import { AttestationSchema } from "../types.js";
-import { DEFAULT_MODEL, type LlmClient } from "../llm/client.js";
+import { VERIFIER_MODEL as DEFAULT_MODEL, type LlmClient } from "../llm/client.js";
 import { applyGuardrails, runChecks, verdictFor } from "./checks.js";
-import { checkOverlap, compareBaseline, findReusedEvidence, findSimilarEvidence } from "./tools.js";
+import { checkEvidenceProvenance, checkOverlap, compareBaseline, findReusedEvidence, findSimilarEvidence } from "./tools.js";
 import { VERIFIER_SYSTEM, VERIFIER_TOOLS, submissionMessage } from "./prompt.js";
 import { loadTrace, saveTrace, traceKey, type TraceStep } from "./traces.js";
 
-export const MAX_STEPS = 6;          // investigation tool calls before the verdict is forced
+export const MAX_STEPS = 7;          // investigation tool calls before the verdict is forced
 const MAX_TURNS = MAX_STEPS + 2;     // hard stop on model round-trips
 
 export interface HistoryEntry { projectId: string; status: Attestation["status"]; flags: string[] }
@@ -150,6 +150,7 @@ async function investigate(
 
 function runTool(name: string, input: { developerId?: string }, project: Project, registry: Project[], ctx: VerifierContext): unknown {
   switch (name) {
+    case "check_evidence_provenance": return checkEvidenceProvenance(project);
     case "check_overlap": return checkOverlap(project, registry);
     case "find_reused_evidence": return findReusedEvidence(project, registry);
     case "find_similar_evidence": return findSimilarEvidence(project, registry);

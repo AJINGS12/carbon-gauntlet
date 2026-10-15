@@ -12,7 +12,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { ProjectSchema, type ArenaEvent, type Project } from "../src/types.js";
 import { verifyProject, type HistoryEntry } from "../src/verifier/agent.js";
-import { createLlmClient, DEFAULT_MODEL } from "../src/llm/client.js";
+import { createLlmClient, VERIFIER_MODEL as DEFAULT_MODEL } from "../src/llm/client.js";
 
 const args = new Set(process.argv.slice(2));
 const seed: Project[] = JSON.parse(readFileSync(new URL("../../../data/seed/projects.json", import.meta.url), "utf8")).projects.map((p: unknown) => ProjectSchema.parse(p));
