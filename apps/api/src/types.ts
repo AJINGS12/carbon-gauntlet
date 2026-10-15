@@ -89,7 +89,7 @@ export type ArenaEvent =
   | { type: "agent_decision"; decision: AgentDecision }
   | { type: "verifier_step"; projectId: string; step: number; tool: string; reason: string; result: unknown; source: "llm" | "replay" | "rules" }
   | { type: "attestation"; attestation: Attestation }
-  | { type: "action_result"; agentId: string; action: string; accepted: boolean; attack: boolean; reason?: string; txHash?: string }
+  | { type: "action_result"; agentId: string; action: string; accepted: boolean; attack: boolean; reason?: string; txHash?: string; network?: string }
   | { type: "agent_fallback"; agentId: string; reason: string }
   | { type: "round_finished"; round: number; metrics: Metrics };
 

@@ -7,7 +7,14 @@ import { tracesDir } from "../traces-dir.js";
  * with recorded verifier traces this reproduces a real model-driven run with no API calls.
  * If a recorded decision is missing or no longer valid, the engine uses the scripted policy.
  */
-export interface RunRecording { mode: Mode; model: string; recordedAt: string; decisions: Record<string, AgentDecision> }
+export interface RunRecording {
+  mode: Mode;
+  model: string;
+  recordedAt: string;
+  decisions: Record<string, AgentDecision>;
+  /** Transaction hashes from replaying this run on a real chain (sim --demo --save-txs), keyed like decisions. */
+  chain?: { network: string; registry: string; savedAt: string; txs: Record<string, string>; anchorTx?: string };
+}
 
 const file = (mode: Mode) => new URL(`${mode.toLowerCase()}.json`, tracesDir("runs"));
 export const decisionKey = (round: number, agentId: string) => `r${round}:${agentId}`;

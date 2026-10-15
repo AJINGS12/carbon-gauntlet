@@ -50,7 +50,7 @@ apps/api/        Express + TypeScript API, streams rounds over SSE — deploys t
   src/verifier/  verifier tools (overlap, evidence reuse/similarity, baseline) + agent loop
   src/agents/    roles, Claude agent policy, scripted fallback, run recordings
   src/engine/    rounds, validation, metrics, run anchoring
-  src/chain/     registry adapter (mock now, Base Sepolia next)
+  src/chain/     registry adapters: mock ledger, Base Sepolia (viem), per-run isolation
 contracts/       CreditRegistry.sol + Hardhat tests
 data/seed/       12 synthetic projects (4 planted frauds, 1 near-miss)
 docs/            assumptions
@@ -81,13 +81,13 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 | Frontend | Vercel | Root directory `apps/web`; set `VITE_API_URL` to the Render URL |
 | API | Render | Uses `render.yaml`; set `CORS_ORIGIN` to the Vercel URL. Ping `/health` every 10 min (cron-job.org) so it doesn't sleep |
 | Database | Neon Postgres | Not wired yet; runs are in memory for now |
-| Contract | Base Sepolia | Deploy script prints both registry addresses |
+| Contract | Base Sepolia | `npm run contracts:deploy`, then `npm run chain:check -w apps/api` ([docs/blockchain.md](docs/blockchain.md)) |
 
 ## Status
 
 | Done | Next |
 | --- | --- |
-| CreditRegistry contract + 8 tests (incl. evidence squatting) | Viem adapter for Base Sepolia |
+| CreditRegistry contract + 8 tests (incl. evidence squatting); Base Sepolia adapter, run isolation, contract-vs-mock parity check, failed-tx proof ([docs/blockchain.md](docs/blockchain.md)) | Deploy to Base Sepolia |
 | Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 12/12 on live eval, 21 tests ([docs/verifier.md](docs/verifier.md)) | |
 | AI agents: Claude decides each move, invents clone attacks, replans after rejection; objective attack classification; recorded runs; 10 tests ([docs/agents.md](docs/agents.md)) | |
 | Engine, metrics, run anchoring, SSE API | Postgres persistence, ledger + results screens, map |
@@ -97,7 +97,8 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 
 ```bash
 npm run contracts:test                            # contract rules, both modes
-npm test -w apps/api                              # verifier, agents, simulation story (40 tests)
+npm test -w apps/api                              # verifier, agents, simulation, chain isolation (44 tests)
 npm run eval:verifier -w apps/api                 # 12 seed projects scored: frauds caught, honest passed
 npm run sim -w apps/api                           # full simulation, both modes, pass/fail scorecard
+npm run chain:check -w apps/api                   # deployed contract gives identical verdicts to the mock
 ```

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "eval:verifier": "tsx scripts/eval-verifier.ts",
     "test": "vitest run",
-    "sim": "tsx scripts/sim.ts"
+    "sim": "tsx scripts/sim.ts",
+    "chain:check": "tsx scripts/chain-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.60.0",

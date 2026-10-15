@@ -11,6 +11,7 @@ async function main() {
   const protectedReg = await Registry.deploy(true);
   await protectedReg.waitForDeployment();
 
+  console.log("\nPaste these two lines into apps/api/.env:\n");
   console.log("REGISTRY_UNPROTECTED_ADDRESS=" + (await unprotected.getAddress()));
   console.log("REGISTRY_PROTECTED_ADDRESS=" + (await protectedReg.getAddress()));
 }

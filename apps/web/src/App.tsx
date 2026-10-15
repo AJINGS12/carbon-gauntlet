@@ -4,9 +4,10 @@ import { useState } from "react";
 // ledger screen, results / public-proof screen (spec section 10).
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+const EXPLORER = import.meta.env.VITE_EXPLORER_URL ?? "https://sepolia.basescan.org";
 type Mode = "UNPROTECTED" | "PROTECTED";
 type Metrics = Record<string, number | null>;
-interface FeedItem { id: number; round: number; text: string; kind: "ok" | "breach" | "blocked" | "agent" | "verifier" | "replan" }
+interface FeedItem { id: number; round: number; text: string; kind: "ok" | "breach" | "blocked" | "agent" | "verifier" | "replan"; link?: string }
 
 const METRIC_LABELS: Record<string, string> = {
   fraudulentClaimsAccepted: "Fraudulent claims accepted",
@@ -26,8 +27,8 @@ export default function App() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const push = (round: number, text: string, kind: FeedItem["kind"]) =>
-    setFeed((f) => [{ id: Date.now() + Math.random(), round, text, kind }, ...f]);
+  const push = (round: number, text: string, kind: FeedItem["kind"], link?: string) =>
+    setFeed((f) => [{ id: Date.now() + Math.random(), round, text, kind, link }, ...f]);
 
   async function start() {
     const res = await fetch(`${API}/runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) });
@@ -67,7 +68,8 @@ export default function App() {
           push(current, `Verifier attests ${a.projectId}: ${a.status}${a.guardrailOverride ? " (guardrail override)" : ""}. ${a.explanation}`, "verifier");
         }
         if (e.type === "action_result" && e.action !== "WAIT")
-          push(current, `${e.agentId} ${e.action}: ${e.accepted ? "ACCEPTED" : `BLOCKED (${e.reason})`}${e.attack ? " · attack" : ""}`, e.accepted ? (e.attack ? "breach" : "ok") : "blocked");
+          push(current, `${e.agentId} ${e.action}: ${e.accepted ? "ACCEPTED" : `BLOCKED (${e.reason})`}${e.attack ? " · attack" : ""}`, e.accepted ? (e.attack ? "breach" : "ok") : "blocked",
+            e.network === "testnet" && e.txHash?.startsWith("0x") ? `${EXPLORER}/tx/${e.txHash}` : undefined);
         if (e.type === "round_finished") { setRound(e.round); setMetrics(e.metrics); }
       }
     }
@@ -109,7 +111,8 @@ export default function App() {
           <div key={f.id} className={`item ${f.kind}`}>
             <span className="round">R{f.round}</span>
             <span className="badge">{f.kind === "blocked" ? "✕ blocked" : f.kind === "ok" ? "✓ accepted" : f.kind === "breach" ? "! fraud through" : f.kind === "replan" ? "↻ replan" : f.kind}</span>
-            {f.text}
+            <span className="text">{f.text}</span>
+            {f.link && <a className="tx" href={f.link} target="_blank" rel="noreferrer">on-chain ↗</a>}
           </div>
         ))}
       </section>

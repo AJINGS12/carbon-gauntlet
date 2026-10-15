@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { AgentAction, AgentDecision, ArenaEvent, Metrics, Mode, Project } from "../types.js";
 import { AgentActionSchema, ProjectSchema } from "../types.js";
 import { createChain, type ChainAdapter, type TxResult } from "../chain/adapter.js";
+import { RunScopedChain } from "../chain/scoped.js";
 import { createAgents, scriptedDecision, advanceScript, type AgentState, type Tactic } from "../agents/policies.js";
 import { ADDRESS, ROLES } from "../agents/roles.js";
 import { llmDecision, type Observation } from "../agents/llm-policy.js";
@@ -56,13 +57,17 @@ const getLlm = () => (llm === undefined ? (llm = createLlmClient()) : llm);
 export function setLlmForTesting(client: LlmClient | null) { llm = client; }
 
 const demoMode = () => process.env.DEMO_MODE === "true";
+const chainMode = () => process.env.CHAIN_MODE ?? "mock";
+/** Replaying a recording on a real chain and saving its tx hashes into the recording. */
+const savingTxs = () => process.env.SAVE_CHAIN_TXS === "true" && chainMode() !== "mock";
 const recording = () => process.env.RECORD_TRACES === "true";
 
 /** Creates a run and seeds a small honest market: green-coop's projects verified and minted. */
 export async function createRun(mode: Mode): Promise<Run> {
-  const chain = createChain(mode);
+  const id = randomUUID();
+  const chain = new RunScopedChain(id.slice(0, 6), await createChain(mode)); // isolated market per run
   const run: Run = {
-    id: randomUUID(), mode, round: 0, chain, agents: [], projects: new Map(seedById), variants: new Set(), registered: new Map(),
+    id, mode, round: 0, chain, agents: [], projects: new Map(seedById), variants: new Set(), registered: new Map(),
     attested: [], history: new Map(), approved: new Map(), batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0,
   };
   const minted: Record<string, number> = {};
@@ -228,7 +233,14 @@ export async function playRound(run: Run, emit: (e: ArenaEvent) => void) {
       if (!run.schemeStart.has(scheme)) run.schemeStart.set(scheme, run.round);
       if (!result.accepted) run.detectionRounds.push(run.round - run.schemeStart.get(scheme)!);
     }
-    emit({ type: "action_result", agentId: agent.id, action: decision.step.action, accepted: result.accepted, attack, reason: result.reason, txHash: result.txHash });
+    const key = decisionKey(run.round, agent.id);
+    if (run.replay && savingTxs() && result.txHash) {
+      run.replay.chain ??= { network: chainMode(), registry: process.env[run.mode === "PROTECTED" ? "REGISTRY_PROTECTED_ADDRESS" : "REGISTRY_UNPROTECTED_ADDRESS"] ?? "", savedAt: new Date().toISOString(), txs: {} };
+      run.replay.chain.txs[key] = result.txHash;
+    }
+    // On the mock chain, a replayed run shows the real transaction recorded earlier (if any).
+    const txHash = chainMode() === "mock" && run.replay?.chain?.txs[key] ? run.replay.chain.txs[key] : result.txHash;
+    emit({ type: "action_result", agentId: agent.id, action: decision.step.action, accepted: result.accepted, attack, reason: result.reason, txHash, network: !txHash ? undefined : txHash === result.txHash ? chainMode() : run.replay?.chain?.network });
     agent.memory.push({ round: run.round, action: decision.step.action, target: JSON.stringify(decision.step.params), accepted: result.accepted, reason: result.reason });
     if (tactic) advanceScript(agent, tactic, result.accepted);
   }
@@ -238,6 +250,8 @@ export async function playRound(run: Run, emit: (e: ArenaEvent) => void) {
     const runHash = "0x" + createHash("sha256").update(JSON.stringify({ mode: run.mode, log: run.log })).digest("hex");
     run.anchorTx = (await run.chain.anchorRun(run.id, runHash)).txHash;
     if (run.recording) saveRecording(run.recording);
+    if (run.replay?.chain && savingTxs()) { run.replay.chain.anchorTx = run.anchorTx; saveRecording(run.replay); }
+    else if (run.replay?.chain?.anchorTx && chainMode() === "mock") run.anchorTx = run.replay.chain.anchorTx;
   }
   emit({ type: "round_finished", round: run.round, metrics });
   return metrics;

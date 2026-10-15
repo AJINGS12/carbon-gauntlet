@@ -112,11 +112,12 @@ export class MockLedger implements ChainAdapter {
   async anchorRun() { return this.ok(); }
 }
 
-// TODO (Phase 2): ViemAdapter implementing ChainAdapter against Base Sepolia, using
-// REGISTRY_PROTECTED_ADDRESS / REGISTRY_UNPROTECTED_ADDRESS and OPERATOR_PRIVATE_KEY.
-// Catch reverts and map the custom error name into TxResult.reason.
-
-export function createChain(mode: Mode): ChainAdapter {
-  if (process.env.CHAIN_MODE === "testnet") throw new Error("ViemAdapter not implemented yet — set CHAIN_MODE=mock");
+/** CHAIN_MODE: "mock" (default, in-memory), "local" (Hardhat node) or "testnet" (Base Sepolia). */
+export async function createChain(mode: Mode): Promise<ChainAdapter> {
+  const chainMode = process.env.CHAIN_MODE ?? "mock";
+  if (chainMode === "testnet" || chainMode === "local") {
+    const { createViemAdapter } = await import("./viem-adapter.js");
+    return createViemAdapter(mode === "PROTECTED");
+  }
   return new MockLedger(mode === "PROTECTED");
 }

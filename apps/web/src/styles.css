@@ -27,3 +27,5 @@ button:disabled { opacity: .5; cursor: default; }
 .item.breach { border-left: 3px solid var(--bad); background: #2a1a18; }
 .item.replan .badge { color: var(--accent); }
 .item.replan { border-left: 3px solid var(--accent); }
+.item .text { flex: 1; }
+.item a.tx { color: var(--accent); font-size: 12px; white-space: nowrap; }

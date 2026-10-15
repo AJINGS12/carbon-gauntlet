@@ -14,13 +14,21 @@ const args = new Set(process.argv.slice(2));
 if (args.has("--demo")) process.env.DEMO_MODE = "true";
 else process.env.DEMO_MODE = "false";
 if (args.has("--record")) process.env.RECORD_TRACES = "true";
+if (args.has("--save-txs")) {
+  if (!args.has("--demo") || !["testnet", "local"].includes(process.env.CHAIN_MODE ?? "")) {
+    console.error("--save-txs replays the recording on a real chain: use it with --demo and CHAIN_MODE=testnet (or local).");
+    process.exit(1);
+  }
+  process.env.SAVE_CHAIN_TXS = "true";
+}
 
 const { createRun, playRound, MAX_ROUNDS } = await import("../src/engine/run.js");
 const { AGENT_MODEL, VERIFIER_MODEL } = await import("../src/llm/client.js");
 type ArenaEvent = import("../src/types.js").ArenaEvent;
 type Metrics = import("../src/types.js").Metrics;
 
-const engine = args.has("--demo") ? "demo replay" : process.env.ANTHROPIC_API_KEY ? `live models (agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL})` : "scripted agents, rule-based verifier (no API key)";
+const chainLabel = process.env.CHAIN_MODE && process.env.CHAIN_MODE !== "mock" ? ` · chain: ${process.env.CHAIN_MODE}` : "";
+const engine = args.has("--demo") ? `demo replay${chainLabel}` : process.env.ANTHROPIC_API_KEY ? `live models (agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL})` : "scripted agents, rule-based verifier (no API key)";
 console.log(`Carbon Gauntlet simulation · ${engine}${args.has("--record") ? " · recording" : ""}\n`);
 
 const summary: Record<string, { metrics: Metrics; replans: number; fallbacks: number; sources: Set<string> }> = {};
@@ -47,7 +55,7 @@ for (const mode of ["UNPROTECTED", "PROTECTED"] as const) {
       if (e.type === "attestation") console.log(`     verifier: ${e.attestation.projectId} → ${e.attestation.status}${e.attestation.guardrailOverride ? " (guardrail)" : ""} [${e.attestation.engine}]`);
       if (e.type === "action_result") {
         console.log(`   ${e.accepted ? "✓" : "✕"} ${pending.get(e.agentId)}`);
-        console.log(`     → ${e.accepted ? "ACCEPTED" : `BLOCKED: ${e.reason}`}${e.attack ? "  [attack]" : ""}`);
+        console.log(`     → ${e.accepted ? "ACCEPTED" : `BLOCKED: ${e.reason}`}${e.attack ? "  [attack]" : ""}${e.txHash?.startsWith("0x") ? `  tx ${e.txHash.slice(0, 12)}…` : ""}`);
       }
     });
   }
@@ -82,4 +90,5 @@ if (args.has("--demo")) {
 console.log("");
 for (const [label, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"}  ${label}`);
 if (args.has("--record")) console.log("\nRecorded to data/traces/ — commit that folder so demo mode can replay this run.");
+if (args.has("--save-txs")) console.log("\nSaved the real transaction hashes into data/traces/runs/ — commit them so the hosted demo links to them.");
 process.exit(checks.every(([, ok]) => ok) ? 0 : 1);
