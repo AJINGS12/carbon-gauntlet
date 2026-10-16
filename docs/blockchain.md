@@ -19,7 +19,7 @@ The same `CreditRegistry` contract is deployed twice on the Base Sepolia testnet
 ## Set up (about 15 minutes, free)
 
 1. **Test wallet.** Create a new MetaMask account used only for this project. Never put real funds in it.
-2. **Test ETH.** Claim Base Sepolia ETH from a faucet on [Base's faucet list](https://docs.base.org/base-chain/network-information/network-faucets).
+2. **Test ETH.** Claim Base Sepolia ETH from the [Optimism Superchain faucet](https://console.optimism.io/faucet) (free, no mainnet balance needed; 0.01 ETH is plenty) or another faucet on [Base's faucet list](https://docs.base.org/base-chain/network-information/network-faucets).
 3. **Keys.** Put the wallet's private key in `contracts/.env` and `apps/api/.env` as `OPERATOR_PRIVATE_KEY` (both files are git-ignored), plus `RPC_URL=https://sepolia.base.org` in `contracts/.env`.
 4. **Deploy:**
    ```bash

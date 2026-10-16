@@ -110,7 +110,9 @@ export class ViemAdapter implements ChainAdapter {
 export function createViemAdapter(strict: boolean): ViemAdapter {
   const local = process.env.CHAIN_MODE === "local";
   const address = (strict ? process.env.REGISTRY_PROTECTED_ADDRESS : process.env.REGISTRY_UNPROTECTED_ADDRESS) as Address | undefined;
-  const privateKey = process.env.OPERATOR_PRIVATE_KEY as Hex | undefined;
+  // MetaMask exports keys without the 0x prefix; accept both.
+  const rawKey = process.env.OPERATOR_PRIVATE_KEY?.trim();
+  const privateKey = rawKey ? ((rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as Hex) : undefined;
   if (!address) throw new Error(`Set ${strict ? "REGISTRY_PROTECTED_ADDRESS" : "REGISTRY_UNPROTECTED_ADDRESS"} (printed by the deploy script)`);
   if (!privateKey) throw new Error("Set OPERATOR_PRIVATE_KEY (the testnet wallet that deployed the registries)");
   return new ViemAdapter(address, {

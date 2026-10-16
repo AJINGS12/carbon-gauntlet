@@ -70,7 +70,7 @@ npm run dev:web                    # http://localhost:5173
 Contracts:
 
 ```bash
-npm run contracts:test             # 7 tests: Protected and Unprotected rules
+npm run contracts:test             # 8 tests: Protected and Unprotected rules
 npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + testnet ETH in contracts/.env
 ```
 
