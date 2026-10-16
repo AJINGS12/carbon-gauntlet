@@ -1,5 +1,5 @@
 import {
-  BaseError, ContractFunctionRevertedError, createPublicClient, createWalletClient, hexToString, http, keccak256, stringToHex, toHex,
+  BaseError, ContractFunctionRevertedError, createPublicClient, createWalletClient, hexToString, http, keccak256, NonceTooLowError, stringToHex, toHex,
   type Address, type Chain, type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -29,24 +29,76 @@ const readable = (arg: unknown): string => {
 };
 const asHash = (h: string): Hex => (/^0x[0-9a-f]{64}$/i.test(h) ? (h as Hex) : keccak256(toHex(h)));
 
+/**
+ * Public RPCs such as sepolia.base.org are load-balanced, and some nodes lag a block or two behind.
+ * A read sent to a lagging node would not see our previous transaction (e.g. an attestation simulated
+ * right after registerProject would revert with ProjectUnknown). So every simulation and gas estimate
+ * is pinned to the block holding our latest transaction: a node either has that block (and therefore
+ * our state) or answers "block not found", and we retry. Shared by all adapters, since all runs
+ * use the same operator wallet.
+ */
+let lastBlock: bigint | undefined;
+/** Next nonce for the operator wallet, tracked locally: a lagging node can report an old transaction count. */
+let nextNonce = 0;
+const RETRIES = 12;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Retries a read that failed for a reason other than a contract revert (lagging node, rate limit, timeout). */
+async function withRetry<T>(read: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await read();
+    } catch (err) {
+      const isRevert = err instanceof BaseError && err.walk((e) => e instanceof ContractFunctionRevertedError);
+      if (isRevert || attempt >= RETRIES) throw err;
+      await sleep(Math.min(500 * attempt, 3000));
+    }
+  }
+}
+
 export class ViemAdapter implements ChainAdapter {
   private readonly pub;
   private readonly wallet;
 
   constructor(private readonly address: Address, opts: { rpcUrl: string; privateKey: Hex; chain: Chain }) {
-    const transport = http(opts.rpcUrl);
+    const transport = http(opts.rpcUrl, { retryCount: 3 });
     this.pub = createPublicClient({ chain: opts.chain, transport });
     this.wallet = createWalletClient({ chain: opts.chain, transport, account: privateKeyToAccount(opts.privateKey) });
   }
 
+  /**
+   * Sends with an explicit nonce: the highest of the node's count and our own. If the node still
+   * says the nonce was used (it lagged), take the next one and retry.
+   */
+  private async send(request: Record<string, unknown>): Promise<Hex> {
+    const address = this.wallet.account.address;
+    for (let attempt = 1; ; attempt++) {
+      const reported = await withRetry(() => this.pub.getTransactionCount({ address, blockTag: "pending" }));
+      const nonce = Math.max(reported, nextNonce);
+      try {
+        const hash = await this.wallet.writeContract({ ...request, nonce } as never);
+        nextNonce = nonce + 1;
+        return hash;
+      } catch (err) {
+        const tooLow = err instanceof BaseError && err.walk((e) => e instanceof NonceTooLowError);
+        if (tooLow && attempt < RETRIES) { nextNonce = nonce + 1; await sleep(500); continue; }
+        // A local Hardhat node mines a failing transaction and then reports an error: the nonce is used.
+        if (err instanceof BaseError && err.walk((e) => typeof (e as { data?: { txHash?: unknown } }).data?.txHash === "string")) nextNonce = nonce + 1;
+        throw err;
+      }
+    }
+  }
+
   /** Simulate, then send and wait. Reverts are returned as data, not thrown. */
   private async write(functionName: string, args: readonly unknown[]): Promise<TxResult> {
+    const call = { address: this.address, abi: REGISTRY_ABI, functionName: functionName as never, args: args as never, account: this.wallet.account };
+    const at = lastBlock === undefined ? {} : { blockNumber: lastBlock };
     try {
-      const sim = await this.pub.simulateContract({
-        address: this.address, abi: REGISTRY_ABI, functionName: functionName as never, args: args as never, account: this.wallet.account,
-      });
-      const hash = await this.wallet.writeContract(sim.request as never);
+      const sim = await withRetry(() => this.pub.simulateContract({ ...call, ...at }));
+      const gas = await withRetry(() => this.pub.estimateContractGas({ ...call, ...at } as never));
+      const hash = await this.send({ ...call, gas: (gas * 13n) / 10n });
       const receipt = await this.pub.waitForTransactionReceipt({ hash });
+      if (lastBlock === undefined || receipt.blockNumber > lastBlock) lastBlock = receipt.blockNumber;
       if (receipt.status !== "success") return { accepted: false, reason: "TransactionReverted", txHash: hash };
       const batchId = typeof sim.result === "bigint" && functionName === "mintCredits" ? Number(sim.result) : undefined;
       return { accepted: true, txHash: hash, batchId };
@@ -71,8 +123,9 @@ export class ViemAdapter implements ChainAdapter {
    */
   private async sendFailing(functionName: string, args: readonly unknown[]): Promise<Hex | undefined> {
     try {
-      const hash = await this.wallet.writeContract({ address: this.address, abi: REGISTRY_ABI, functionName: functionName as never, args: args as never, gas: 300_000n } as never);
-      await this.pub.waitForTransactionReceipt({ hash });
+      const hash = await this.send({ address: this.address, abi: REGISTRY_ABI, functionName, args, gas: 300_000n });
+      const receipt = await this.pub.waitForTransactionReceipt({ hash });
+      if (lastBlock === undefined || receipt.blockNumber > lastBlock) lastBlock = receipt.blockNumber;
       return hash;
     } catch (err) {
       const withHash = err instanceof BaseError ? err.walk((e) => typeof (e as { data?: { txHash?: unknown } }).data?.txHash === "string") : null;
