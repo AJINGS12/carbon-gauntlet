@@ -400,5 +400,37 @@
       "reason": "Final round: retire batch 7 to count the 2400 t toward our national target now, since it's the quickest and cheapest route.",
       "source": "llm"
     }
+  },
+  "chain": {
+    "network": "testnet",
+    "registry": "0x42c1e93857e4b42C989C5c952c252d7D3fB8543E",
+    "savedAt": "2026-10-17T08:51:07.972Z",
+    "txs": {
+      "r1:honest-dev": "0x8df2b9e29553bc2e93dda89328a4c936581f723a43d0bac2b9cea59b9e3c02b1",
+      "r1:opportunist-dev": "0x8468af4512b2d6e92c7a4f9a58e9c14b8002c086f88fb6047588d9de5a797cf4",
+      "r1:broker": "0x22a8c36a5db4edcb943f810fce8c8ea3b997a25aa4ab92848698a044d8520b10",
+      "r1:coal-nation": "0x3a98c8e659e6cb032022f2c9bbba1f8114bd349ceddf7e2c22aacd58a61ca11d",
+      "r2:honest-dev": "0x80d57e35800990ac33c6e226d8847b8b629057feb099d8d72d3a668cbf5aec8f",
+      "r2:opportunist-dev": "0x4b53cfe4dc42b3b5d6d4a669fe57d8d51be287393ca2802fd1318d78ecfd023d",
+      "r2:broker": "0x529cf9036b6c7c1d0d24e9fc82cd6bbfa33c3521ac1f631093c373bebbac80e2",
+      "r2:coal-nation": "0x6127d3bfe0c3a171b01722371bba8aa94eab6774b8e9b48a9e2665e060037200",
+      "r3:honest-dev": "0x0613fd1e83133d2475fd7f815c3c30dbbd64535164d65e93800486e275f5e791",
+      "r3:opportunist-dev": "0xffeb1b2cc47a9e44cb2e18bcd4be8eb8edb452d559c0af8efa055abfb5ed9171",
+      "r3:broker": "0x67e1e910fd63cea808ef5f5fa33da384e42066b557b7766d164b23a11080462e",
+      "r3:coal-nation": "0x8a8e371d81968646c2fd7b0c94db9a7769848357b8784de66904704226861cfc",
+      "r4:honest-dev": "0x4df3b6990d94866e6479a038d359e7039801ecd7cc0aa9e5b556b30ed2ae574a",
+      "r4:opportunist-dev": "0xbff4730bdc316933c2923a56a3797a7731a9c347d86050ca33f00cebb733660e",
+      "r4:broker": "0x8cdb3d4b2b63e68580d326e14cab24d7671ae51f514a28c0a7346f48763cf387",
+      "r4:coal-nation": "0xe71ca51e5e55d6b1fc1d9d9c0164e9d60263012c750ccc2983bc88271107b735",
+      "r5:honest-dev": "0xbad2c8508e0494a901116e72bf41f07d5c1797fcb1938135560bfb383812770b",
+      "r5:opportunist-dev": "0x18a0e1691ab3f88bb048ae6b4df4f4add15958970979aeb8f74dd0e2ab101700",
+      "r5:broker": "0xc81e20d27b4694b25542a7fe7d869d0c484774990b3fc2d6aad7f64b8202b710",
+      "r5:coal-nation": "0x806bfe70de3c95d6545b488e247c381841eea91f935a135d241594e718b66051",
+      "r6:honest-dev": "0xdf587110024829905c41db8483ec511f802602420e43220956fe242494c10fcb",
+      "r6:opportunist-dev": "0x16b313209987681d6b98e10b87a16cf61fb9e58001d4b250ce1b643b0dc7e79b",
+      "r6:broker": "0xc82b5331a5c907dd386e6ae08c4ee4010c704ab019cad85adfdec19a04116f03",
+      "r6:coal-nation": "0x47a692437d44577d47a3bfe125e54dc2ef471a3a482c55a776e370a58f30dd1f"
+    },
+    "anchorTx": "0xf1eddb330c7b474874472cfdc166668b461e5868b7007c95b6e0b65b7cd2d9d2"
   }
 }

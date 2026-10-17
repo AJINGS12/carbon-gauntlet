@@ -398,5 +398,37 @@
       "reason": "Adjustment on batch 5 is recorded, so I can now buy the 700 t legitimately and cover my target.",
       "source": "llm"
     }
+  },
+  "chain": {
+    "network": "testnet",
+    "registry": "0x0abBb146d782bE58555cC2b63cFe0e14FD234c9F",
+    "savedAt": "2026-10-17T08:55:54.980Z",
+    "txs": {
+      "r1:honest-dev": "0x3a9172d8e8c6109b255dd3b1d088a8ab8320b7302633e9c6743cd5aee64fc179",
+      "r1:opportunist-dev": "0x920ec2adf16f8667c8487ddd709e1a50adacfc2bdbefbe78739f7a54cf39e168",
+      "r1:broker": "0x802b368971f546a5f59fe8e2d1ce292215926c1627fea4060250aaa6538d6e2d",
+      "r1:coal-nation": "0xa3d33475150341de9dabb1495cc4942bfbd38306c62f9846a79d3372ebbfe7b4",
+      "r2:honest-dev": "0x3633edd17e8643965c81163f463da437f393840b7f6b351ba6e88bf6c6cf125b",
+      "r2:opportunist-dev": "0xad20cebd398cab9857a251ab9e0e6a9277c95bb9a3e75ccff3933a99fd302d00",
+      "r2:broker": "0x5ce9201d6572de34af32e4768fd9e012af4e1d7eda04fe8aef578d6af8639f41",
+      "r2:coal-nation": "0xb248ee11006295760b688a24fb4591e05129fd52c75f611acc6332450c9e1751",
+      "r3:honest-dev": "0x39a9a7317772a85cab13478119d97b05581660142fb05d90686f4eecdcb9e1d8",
+      "r3:opportunist-dev": "0xe9ee4fed1d1167cf7af31d6e986721bc2910717c60d2cb28e8e40ca6f9afeb52",
+      "r3:broker": "0x7f0cb687cebe8628e3462934cdaef9fb015a9325220756bda1f8c457c7238ec3",
+      "r3:coal-nation": "0x11391f677dfe2e410f8ad975fe0e33db61041e439d3ed090e55aaa7b26e0d1ea",
+      "r4:honest-dev": "0xf10c1508d5007088c6233f1dadc5b471434923702c6e78fc536f1df1222eb42a",
+      "r4:opportunist-dev": "0x82f8f519fe763518a342a1d0b4f94359467e710f305c7f4427a2640f30f2b915",
+      "r4:broker": "0xf233f5be159aee50ed9f0a7a132dbf6a0b4e1a27bf2d8e2be6209b2eced6bea5",
+      "r4:coal-nation": "0xc9f92630770e69b66f6df21d7e3ecfcac1dc45e70e95a235cd29f1aefa4b4d47",
+      "r5:honest-dev": "0xe5edd3011687b8e698fcd9ba8f08d4e46e2143542360b23389bf88cc189eaf7e",
+      "r5:opportunist-dev": "0xf3efd0ad8d06477e47b7f82e45732d7337f553abcb35661cc01b823706eef324",
+      "r5:broker": "0xc37032209d00e4ea0f0f0cf4b512f86d8942d5a6dee2a992eaeb93d115dc32a2",
+      "r5:coal-nation": "0x103968306c4e695978caf897db85b940fc7ed34e7c52e4755d76b7fc0918eb64",
+      "r6:honest-dev": "0xc82d13b32be6d1a121a66fafeb32d07637d364d1c745d1eeeda5714c6cd96576",
+      "r6:opportunist-dev": "0xc35f6075ff923c99b54cbe402d8af4f13bb82918b0bbff2b10cc4c401f8a8ba5",
+      "r6:broker": "0xce0b184807624ef044ee627cf3e7ea8db261f9968900187d85b91a3d73be1f47",
+      "r6:coal-nation": "0xea1f6be6cb90b576ad39e1caf0025fdb29ec0c8a065e52ba7ccc00d31c6fc268"
+    },
+    "anchorTx": "0x72c0358fffe0e9738390b95b239d6af488c102c84fb04fbbef669f70d317156c"
   }
 }
