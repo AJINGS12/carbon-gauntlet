@@ -45,7 +45,7 @@ Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier), replayed on B
 ## Repo layout
 
 ```
-apps/web/        React (Vite) Arena: both markets side by side, map, ledger, results. Deploys to Vercel
+apps/web/        React (Vite): home page (/) and the Arena (/arena). Deploys to Vercel
 apps/api/        Express + TypeScript API, streams rounds over SSE — deploys to Render
   src/verifier/  verifier tools (overlap, evidence reuse/similarity, baseline) + agent loop
   src/agents/    roles, Claude agent policy, scripted fallback, run recordings
@@ -64,7 +64,7 @@ Requires Node 20+.
 npm install
 cp .env.example apps/api/.env      # defaults run in demo mode with a mock chain
 npm run dev:api                    # http://localhost:4000/health
-npm run dev:web                    # http://localhost:5173
+npm run dev:web                    # http://localhost:5173 (home), /arena to run it
 ```
 
 Contracts:

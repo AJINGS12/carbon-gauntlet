@@ -52,6 +52,8 @@ export interface ArenaInfo {
   projects: PublicProject[];
   preseeded: string[];
   deployments: Record<Mode, Deployment>;
+  /** Final result of the recorded run (demo mode), for the home page. */
+  result: Record<Mode, { metrics: Metrics; ledger: LedgerRow[] }> | null;
 }
 
 export type Action =
@@ -102,7 +104,9 @@ async function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const fetchArena = () => fetch(`${API}/arena`).then((r) => json<ArenaInfo>(r));
+let arenaInfo: Promise<ArenaInfo> | undefined;
+/** Fetched once per page load and shared by the home page and the Arena. */
+export const fetchArena = () => (arenaInfo ??= fetch(`${API}/arena`).then((r) => json<ArenaInfo>(r)).catch((err) => { arenaInfo = undefined; throw err; }));
 
 export const createRun = (mode: Mode) =>
   fetch(`${API}/runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) })

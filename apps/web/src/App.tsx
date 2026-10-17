@@ -1,98 +1,53 @@
-import { useRef, useState } from "react";
-import type { Mode } from "./api";
-import { useArena } from "./useArena";
-import { AgentStrip, MARKET, MarketColumn } from "./Market";
-import { SiteMap } from "./SiteMap";
-import { LedgerTable, Results } from "./Results";
+import { useEffect, useState } from "react";
+import Home from "./Home";
+import Arena from "./Arena";
+import { REPO_URL } from "./api";
 
-const SPEEDS = [1, 2, 4];
+/** Two pages, no router library: "/" is the home page, "/arena" runs the gauntlet. */
+function usePath(): [string, (to: string) => void] {
+  const [path, setPath] = useState(window.location.pathname);
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  const go = (to: string) => {
+    if (to === window.location.pathname) return;
+    window.history.pushState({}, "", to);
+    setPath(to);
+    window.scrollTo(0, 0);
+  };
+  return [path, go];
+}
 
 export default function App() {
-  const { info, markets, status, error, speed, setSpeed, play, step, pause, reset } = useArena();
-  const [focusAgent, setFocusAgent] = useState<string | null>(null);
-  const [view, setView] = useState<Mode>("PROTECTED");
-  const max = info?.maxRounds ?? 6;
-  const round = markets.PROTECTED.round;
-  const playing = status === "playing";
-  const rec = info?.deployments.PROTECTED.recording;
-  const marketsRef = useRef<HTMLDivElement>(null);
-  // The action happens in the market feeds: bring them into view when playback starts, if they're below the fold.
-  const showMarkets = () => {
-    const el = marketsRef.current;
-    if (!el || el.getBoundingClientRect().top < window.innerHeight * 0.45) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-  };
+  const [path, go] = usePath();
+  const arena = path.startsWith("/arena");
+  const link = (to: string) => (e: React.MouseEvent) => { e.preventDefault(); go(to); };
+
+  useEffect(() => {
+    document.title = arena ? "The Arena · Carbon Gauntlet" : "Carbon Gauntlet: only honest credits make it through";
+  }, [arena]);
 
   return (
-    <div className="page">
-      <header className="masthead">
-        <h1>Carbon Gauntlet</h1>
-        <p className="lede">
-          Four AI agents trade carbon credits in two markets at once. Three of them cheat. One market takes every claim on trust;
-          the other runs an AI verifier and an on-chain registry. Watch what gets through.
-        </p>
-        <p className="fine">Prototype for the IEEE ClimateChain Global Hackathon 2026. Synthetic projects, Base Sepolia testnet, not a real carbon registry.</p>
-      </header>
-
-      <section className="controls" aria-label="Playback">
-        <ol className="rounds" aria-label={`Round ${round} of ${max}`}>
-          {Array.from({ length: max }, (_, i) => (
-            <li key={i} className={i < round ? "done" : i === round && playing ? "now" : ""}>{i + 1}</li>
-          ))}
-        </ol>
-        <div className="buttons">
-          {playing ? (
-            <button type="button" className="primary" onClick={pause}>Pause after this round</button>
+    <>
+      <a className="skip" href="#main">Skip to content</a>
+      <nav className="topbar" aria-label="Main">
+        <a className="brand" href="/" onClick={link("/")} aria-label="Carbon Gauntlet home">Carbon Gauntlet</a>
+        <div className="nav-links">
+          {!arena && <a href="#how">How it works</a>}
+          <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
+          {arena ? (
+            <a className="button" href="/" onClick={link("/")}>About the project</a>
           ) : (
-            <button type="button" className="primary" onClick={() => { showMarkets(); void play(); }} disabled={status === "loading" || status === "error" || status === "finished"}>
-              {round === 0 ? "Run the gauntlet" : "Continue"}
-            </button>
+            <a className="button primary" href="/arena" onClick={link("/arena")}>Open the Arena</a>
           )}
-          <button type="button" onClick={() => { showMarkets(); void step(); }} disabled={playing || status === "loading" || status === "error" || status === "finished"}>Play one round</button>
-          <button type="button" onClick={() => void reset()} disabled={status === "loading"}>Start over</button>
-          <div className="speed" role="radiogroup" aria-label="Playback speed">
-            {SPEEDS.map((s) => (
-              <button key={s} type="button" role="radio" aria-checked={speed === s} className={speed === s ? "on" : ""} onClick={() => setSpeed(s)}>{s}×</button>
-            ))}
-          </div>
         </div>
-        <p className="status" role="status">
-          {status === "loading" && "Setting up both markets…"}
-          {status === "error" && <span className="error">{error}</span>}
-          {(status === "ready" || status === "paused") && (rec
-            ? `Replaying a live run recorded on ${new Date(rec.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}: every move was chosen by Claude. No AI calls are made now.`
-            : info?.demoMode ? "Demo mode: scripted agents and rule checks." : "Live mode: agents and verifier call Claude each round.")}
-          {playing && `Playing round ${Math.min(round + 1, max)} of ${max}.`}
-          {status === "finished" && "All six rounds played. Results are below."}
-        </p>
-      </section>
-
-      {info && <AgentStrip roles={info.roles} markets={markets} focus={focusAgent} onFocus={setFocusAgent} />}
-
-      <div className="markets" ref={marketsRef}>
-        <MarketColumn mode="UNPROTECTED" market={markets.UNPROTECTED} focusAgent={focusAgent} />
-        <MarketColumn mode="PROTECTED" market={markets.PROTECTED} focusAgent={focusAgent} />
-      </div>
-
-      {info && status === "finished" && <Results info={info} markets={markets} />}
-
-      {info && (
-        <section className="detail" aria-labelledby="h-detail">
-          <div className="detail-head">
-            <h2 id="h-detail">Where the projects are, and who holds the credits</h2>
-            <div className="seg-toggle" role="radiogroup" aria-label="Market to show">
-              {(["UNPROTECTED", "PROTECTED"] as Mode[]).map((m) => (
-                <button key={m} type="button" role="radio" aria-checked={view === m} className={view === m ? "on" : ""} onClick={() => setView(m)}>{MARKET[m].title}</button>
-              ))}
-            </div>
-          </div>
-          <div className="detail-body">
-            <SiteMap info={info} market={markets[view]} />
-            <LedgerTable ledger={markets[view].ledger} />
-          </div>
-        </section>
-      )}
-    </div>
+      </nav>
+      <main id="main">{arena ? <Arena /> : <Home go={go} />}</main>
+      <footer className="site-foot">
+        <p>Carbon Gauntlet is an experimental prototype built for the IEEE ClimateChain Global Hackathon 2026. All projects are synthetic and it runs on a testnet: it is not a real carbon registry.</p>
+      </footer>
+    </>
   );
 }

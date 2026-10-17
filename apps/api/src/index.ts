@@ -14,8 +14,27 @@ app.use(express.json());
 // Render health check + keep-awake ping target
 app.get("/health", (_req, res) => res.json({ ok: true, demoMode: process.env.DEMO_MODE === "true" }));
 
+/**
+ * The recorded run's final result, for the home page. Computed once by replaying the recording
+ * on the in-memory ledger (demo mode only, so it never calls the model or sends transactions).
+ */
+let preview: Promise<Record<Mode, { metrics: ReturnType<typeof computeMetrics>; ledger: ReturnType<typeof ledger> }> | null> | undefined;
+function recordedResult() {
+  if (process.env.DEMO_MODE !== "true" || (process.env.CHAIN_MODE ?? "mock") !== "mock") return Promise.resolve(null);
+  preview ??= (async () => {
+    const out = {} as Record<Mode, { metrics: ReturnType<typeof computeMetrics>; ledger: ReturnType<typeof ledger> }>;
+    for (const mode of ["UNPROTECTED", "PROTECTED"] as const) {
+      const run = await createRun(mode);
+      for (let i = 0; i < MAX_ROUNDS; i++) await playRound(run, () => {});
+      out[mode] = { metrics: computeMetrics(run), ledger: ledger(run) };
+    }
+    return out;
+  })().catch(() => null);
+  return preview;
+}
+
 // Everything the Arena needs before a run: the actors, the projects, and where the proof lives.
-app.get("/arena", (_req, res) => {
+app.get("/arena", async (_req, res) => {
   const chainMode = process.env.CHAIN_MODE ?? "mock";
   const deployment = (mode: Mode) => {
     const rec = process.env.DEMO_MODE === "true" ? loadRecording(mode) : null;
@@ -34,6 +53,7 @@ app.get("/arena", (_req, res) => {
     roles: ROLES.map(({ id, name, honest, country, goal, portfolio }) => ({ id, name, honest, country, goal, portfolio })),
     ...arenaSeed(),
     deployments: { UNPROTECTED: deployment("UNPROTECTED"), PROTECTED: deployment("PROTECTED") },
+    result: await recordedResult(),
   });
 });
 
