@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRun, playRound, MAX_ROUNDS } from "./run.js";
+import { createRun, playRound, ledger, MAX_ROUNDS } from "./run.js";
 import type { ArenaEvent, Metrics, Mode } from "../types.js";
 
 // Demo mode with no recordings: scripted agents and rule checks, so results are deterministic.
@@ -42,5 +42,24 @@ describe("simulation — the demo story", () => {
     const { run } = await fullRun("PROTECTED");
     expect(run.anchorTx).toBeTruthy();
     await expect(playRound(run, () => {})).rejects.toThrow("Run finished");
+  });
+
+  it("the ledger flags exactly the tonnes the metrics count as at risk", async () => {
+    for (const mode of ["UNPROTECTED", "PROTECTED"] as const) {
+      const { run, metrics, events } = await fullRun(mode);
+      const rows = ledger(run);
+      expect(rows.filter((r) => r.atRisk).reduce((t, r) => t + r.quantity, 0)).toBe(metrics.creditsAtRisk);
+      const last = events.filter((e) => e.type === "round_finished").at(-1);
+      expect(last?.type === "round_finished" && last.ledger).toEqual(rows);
+    }
+  });
+
+  it("shows submitted projects to the Arena without evidence text or seed notes", async () => {
+    const { events } = await fullRun("UNPROTECTED");
+    const submitted = events.flatMap((e) => (e.type === "project_submitted" ? [e] : []));
+    expect(submitted.length).toBeGreaterThan(0);
+    for (const e of submitted) {
+      expect(Object.keys(e.project).sort()).toEqual(["boundary", "claimedReduction", "developerId", "hostCountry", "methodology", "projectId"]);
+    }
   });
 });

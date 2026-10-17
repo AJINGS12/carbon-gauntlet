@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import type { AgentAction, AgentDecision, ArenaEvent, Metrics, Mode, Project } from "../types.js";
+import type { AgentAction, AgentDecision, ArenaEvent, LedgerRow, Metrics, Mode, Project, PublicProject } from "../types.js";
 import { AgentActionSchema, ProjectSchema } from "../types.js";
 import { createChain, type ChainAdapter, type TxResult } from "../chain/adapter.js";
 import { RunScopedChain } from "../chain/scoped.js";
@@ -253,7 +253,7 @@ export async function playRound(run: Run, emit: (e: ArenaEvent) => void) {
     if (run.replay?.chain && savingTxs()) { run.replay.chain.anchorTx = run.anchorTx; saveRecording(run.replay); }
     else if (run.replay?.chain?.anchorTx && chainMode() === "mock") run.anchorTx = run.replay.chain.anchorTx;
   }
-  emit({ type: "round_finished", round: run.round, metrics });
+  emit({ type: "round_finished", round: run.round, metrics, ledger: ledger(run) });
   return metrics;
 }
 
@@ -282,6 +282,7 @@ function makeVariant(run: Run, agent: AgentState, source: Project, km: number): 
 
 async function register(run: Run, agent: AgentState, p: Project, emit: (e: ArenaEvent) => void): Promise<TxResult> {
   const { chain } = run;
+  emit({ type: "project_submitted", project: publicProject(p, agent.id), variantOf: run.variants.has(p.projectId) ? p.projectId.replace(/-copy\d+$/, "") : undefined });
   const reg = await registerOnChain(chain, p, agent.address);
   if (!reg.accepted) return reg;
   const evidenceHash = sha256(p.evidence[0].text);
@@ -362,6 +363,13 @@ async function execute(run: Run, agent: AgentState, step: AgentAction, emit: (e:
   }
 }
 
+/** Accepted attacks that put tonnes at risk: fraudulent mints, and moves of a retired or unadjusted batch. */
+function riskyEntries(run: Run) {
+  const accepted = run.log.filter((l) => l.attack && l.accepted);
+  const moved = accepted.filter((l) => l.action === "BUY_CREDITS" || l.action === "TRANSFER_CREDITS");
+  return { accepted, moved, risky: accepted.filter((l) => l.action === "MINT_CREDITS" || moved.includes(l)) };
+}
+
 /**
  * Metrics count each tonne once. A fraudulent batch that is later resold or double-claimed is
  * still one batch of tonnes at risk (found in a live run: a buyer purchased a fraudulent batch,
@@ -369,14 +377,13 @@ async function execute(run: Run, agent: AgentState, step: AgentAction, emit: (e:
  */
 export function computeMetrics(run: Run): Metrics {
   const attacks = run.log.filter((l) => l.attack);
-  const accepted = attacks.filter((l) => l.accepted);
+  const { accepted, moved, risky } = riskyEntries(run);
   const tonnes = (entries: LogEntry[]) => {
     const byBatch = new Map<number, number>();
     for (const l of entries) if (l.batchId !== undefined) byBatch.set(l.batchId, l.quantity);
     return [...byBatch.values()].reduce((a, b) => a + b, 0);
   };
-  const moved = accepted.filter((l) => l.action === "BUY_CREDITS" || l.action === "TRANSFER_CREDITS");
-  const atRisk = tonnes(accepted.filter((l) => l.action === "MINT_CREDITS" || moved.includes(l)));
+  const atRisk = tonnes(risky);
   return {
     fraudulentClaimsAccepted: accepted.filter((l) => l.action !== "REGISTER_PROJECT" && l.action !== "REGISTER_VARIANT").length,
     attacksBlocked: attacks.length - accepted.length,
@@ -388,5 +395,22 @@ export function computeMetrics(run: Run): Metrics {
     honestClaimsBlocked: run.log.filter((l) => !l.attack && !l.accepted && run.agents.find((a) => a.id === l.agentId)?.honest).length,
   };
 }
+
+/** Every batch in the run's market, flagged when its tonnes are at risk (same rule as the metrics). */
+export function ledger(run: Run): LedgerRow[] {
+  const risky = new Set(riskyEntries(run).risky.map((l) => l.batchId));
+  return [...run.batches.entries()].map(([batchId, b]) => ({
+    batchId, projectId: b.projectId, hostCountry: b.hostCountry, owner: ownerName(b.owner), quantity: b.quantity,
+    status: b.status, adjusted: b.adjusted, atRisk: risky.has(batchId),
+  }));
+}
+
+/** A project as the Arena may show it: no evidence text, no seed notes. */
+export function publicProject(p: Project, developerId = p.developerId): PublicProject {
+  return { projectId: p.projectId, developerId, hostCountry: p.hostCountry, methodology: p.methodology, claimedReduction: p.claimedReduction, boundary: p.boundary };
+}
+
+/** Seed projects and which ones are already registered, verified and minted when a run starts. */
+export const arenaSeed = () => ({ projects: SEED.map((p) => publicProject(p)), preseeded: PRESEEDED });
 
 export { FRAUDULENT };

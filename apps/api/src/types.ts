@@ -91,7 +91,30 @@ export type ArenaEvent =
   | { type: "attestation"; attestation: Attestation }
   | { type: "action_result"; agentId: string; action: string; accepted: boolean; attack: boolean; reason?: string; txHash?: string; network?: string }
   | { type: "agent_fallback"; agentId: string; reason: string }
-  | { type: "round_finished"; round: number; metrics: Metrics };
+  | { type: "project_submitted"; project: PublicProject; variantOf?: string }
+  | { type: "round_finished"; round: number; metrics: Metrics; ledger: LedgerRow[] };
+
+/** What the Arena may show about a project (never the seed's `planted` note or evidence text). */
+export interface PublicProject {
+  projectId: string;
+  developerId: string;
+  hostCountry: string;
+  methodology: Project["methodology"];
+  claimedReduction: number;
+  boundary: Project["boundary"];
+}
+
+/** One credit batch as the Arena's ledger shows it. */
+export interface LedgerRow {
+  batchId: number;
+  projectId: string;
+  hostCountry: string;
+  owner: string;          // agent id (or address if unknown)
+  quantity: number;
+  status: "ACTIVE" | "RETIRED" | "FROZEN";
+  adjusted: boolean;
+  atRisk: boolean;        // minted fraudulently or moved in a double claim / resale
+}
 
 export type Mode = "UNPROTECTED" | "PROTECTED";
 

@@ -45,7 +45,7 @@ Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier), replayed on B
 ## Repo layout
 
 ```
-apps/web/        React (Vite) Arena — deploys to Vercel
+apps/web/        React (Vite) Arena: both markets side by side, map, ledger, results. Deploys to Vercel
 apps/api/        Express + TypeScript API, streams rounds over SSE — deploys to Render
   src/verifier/  verifier tools (overlap, evidence reuse/similarity, baseline) + agent loop
   src/agents/    roles, Claude agent policy, scripted fallback, run recordings
@@ -90,14 +90,14 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 | CreditRegistry contract + 8 tests (incl. evidence squatting), **live on Base Sepolia**; contract matches the mock verdict-for-verdict; every demo action is a real transaction ([docs/blockchain.md](docs/blockchain.md)) | |
 | Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 12/12 on live eval, 21 tests ([docs/verifier.md](docs/verifier.md)) | |
 | AI agents: Claude decides each move, invents clone attacks, replans after rejection; objective attack classification; recorded runs; 10 tests ([docs/agents.md](docs/agents.md)) | |
-| Engine, metrics, run anchoring, SSE API | Postgres persistence, ledger + results screens, map |
-| Minimal Arena | Agent cards, investigation trace view |
+| Engine, metrics, run anchoring, SSE API | Deploy: Vercel + Render |
+| Arena: both markets played side by side, agent cards with live plans, tonnage bars, the verifier's investigation for every claim, site map with clones, batch ledger, results with on-chain proof | Demo video, submission pack |
 
 ## Tests
 
 ```bash
 npm run contracts:test                            # contract rules, both modes
-npm test -w apps/api                              # verifier, agents, simulation, chain isolation (44 tests)
+npm test -w apps/api                              # verifier, agents, simulation, chain isolation (46 tests)
 npm run eval:verifier -w apps/api                 # 12 seed projects scored: frauds caught, honest passed
 npm run sim -w apps/api                           # full simulation, both modes, pass/fail scorecard
 npm run chain:check -w apps/api                   # deployed contract gives identical verdicts to the mock

@@ -1,0 +1,131 @@
+// Types mirror apps/api/src/types.ts (kept in sync by hand; the API is the source of truth).
+export const API = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+export const EXPLORER = import.meta.env.VITE_EXPLORER_URL ?? "https://sepolia.basescan.org";
+export const REPO_URL = import.meta.env.VITE_REPO_URL ?? "https://github.com/AJINGS12/carbon-gauntlet";
+
+export type Mode = "UNPROTECTED" | "PROTECTED";
+export const MODES: Mode[] = ["UNPROTECTED", "PROTECTED"];
+
+export interface Metrics {
+  fraudulentClaimsAccepted: number;
+  attacksBlocked: number;
+  creditsAtRisk: number;
+  doubleClaimedCredits: number;
+  avgRoundsToDetection: number | null;
+  integrityScore: number;
+  honestClaimsBlocked: number;
+}
+
+export interface Polygon { type: "Polygon"; coordinates: [number, number][][] }
+export interface PublicProject {
+  projectId: string;
+  developerId: string;
+  hostCountry: string;
+  methodology: "reforestation" | "cookstoves" | "solar" | "methane-capture";
+  claimedReduction: number;
+  boundary: Polygon;
+}
+
+export interface LedgerRow {
+  batchId: number;
+  projectId: string;
+  hostCountry: string;
+  owner: string;
+  quantity: number;
+  status: "ACTIVE" | "RETIRED" | "FROZEN";
+  adjusted: boolean;
+  atRisk: boolean;
+}
+
+export interface Role { id: string; name: string; honest: boolean; country: string; goal: string; portfolio: string[] }
+
+export interface Deployment {
+  recording: { model: string; recordedAt: string } | null;
+  chain: { network: string; registry: string; anchorTx?: string } | null;
+}
+
+export interface ArenaInfo {
+  maxRounds: number;
+  demoMode: boolean;
+  chainMode: string;
+  roles: Role[];
+  projects: PublicProject[];
+  preseeded: string[];
+  deployments: Record<Mode, Deployment>;
+}
+
+export type Action =
+  | { action: "REGISTER_PROJECT"; params: { projectId: string } }
+  | { action: "REGISTER_VARIANT"; params: { copyFrom: string; shiftKm: number } }
+  | { action: "MINT_CREDITS"; params: { projectId: string; quantity: number } }
+  | { action: "TRANSFER_CREDITS"; params: { batchId: number; to: string; toCountry: string } }
+  | { action: "RETIRE_CREDITS"; params: { batchId: number; beneficiary: string } }
+  | { action: "BUY_CREDITS"; params: { batchId: number } }
+  | { action: "REQUEST_ADJUSTMENT"; params: { batchId: number } }
+  | { action: "WAIT"; params: Record<string, never> };
+
+export interface Decision {
+  agentId: string;
+  plan: string[];
+  step: Action;
+  reason: string;
+  source?: "llm" | "replay" | "script";
+  replanned?: boolean;
+  previousPlan?: string[];
+}
+
+export interface RiskFlag { type: string; severity: "LOW" | "MEDIUM" | "HIGH"; relatedProjectId?: string; detail: string; source?: "llm" | "rule" }
+export interface Attestation {
+  projectId: string;
+  status: "APPROVED" | "REVIEW_REQUIRED" | "REJECTED";
+  confidence: number;
+  riskFlags: RiskFlag[];
+  approvedReduction: number;
+  explanation: string;
+  engine?: "llm" | "replay" | "rules";
+  guardrailOverride?: boolean;
+}
+
+export type ArenaEvent =
+  | { type: "round_started"; round: number; mode: Mode }
+  | { type: "agent_decision"; decision: Decision }
+  | { type: "verifier_step"; projectId: string; step: number; tool: string; reason: string; result: unknown; source: "llm" | "replay" | "rules" }
+  | { type: "attestation"; attestation: Attestation }
+  | { type: "action_result"; agentId: string; action: string; accepted: boolean; attack: boolean; reason?: string; txHash?: string; network?: string }
+  | { type: "agent_fallback"; agentId: string; reason: string }
+  | { type: "project_submitted"; project: PublicProject; variantOf?: string }
+  | { type: "round_finished"; round: number; metrics: Metrics; ledger: LedgerRow[] }
+  | { type: "error"; message: string };
+
+async function json<T>(res: Response): Promise<T> {
+  if (!res.ok) throw new Error(`The API answered ${res.status}. ${(await res.text()).slice(0, 200)}`);
+  return res.json() as Promise<T>;
+}
+
+export const fetchArena = () => fetch(`${API}/arena`).then((r) => json<ArenaInfo>(r));
+
+export const createRun = (mode: Mode) =>
+  fetch(`${API}/runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) })
+    .then((r) => json<{ runId: string; maxRounds: number; metrics: Metrics; ledger: LedgerRow[] }>(r));
+
+/** Plays one round and returns every event it streamed (Server-Sent Events over a POST). */
+export async function playRound(runId: string): Promise<ArenaEvent[]> {
+  const res = await fetch(`${API}/runs/${runId}/rounds`, { method: "POST" });
+  if (!res.ok || !res.body) throw new Error(`The API answered ${res.status} when playing a round.`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const events: ArenaEvent[] = [];
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+    for (const part of parts) if (part.startsWith("data: ")) events.push(JSON.parse(part.slice(6)) as ArenaEvent);
+  }
+  return events;
+}
+
+export const txUrl = (hash?: string) => (hash?.startsWith("0x") && hash.length === 66 ? `${EXPLORER}/tx/${hash}` : undefined);
+export const addressUrl = (address: string) => `${EXPLORER}/address/${address}`;
