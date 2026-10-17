@@ -1,16 +1,18 @@
+import { useEffect, useRef, useState } from "react";
 import type { LedgerRow, Mode, Role } from "./api";
 import { txUrl } from "./api";
-import type { Investigation, Market, Row } from "./useArena";
+import type { Investigation, Market, Row, Turn } from "./useArena";
+import { Avatar } from "./Avatar";
 import { describe, explain, flagText, nameOf, STATUS_TEXT, tonnes, toolText } from "./text";
 
 export const MARKET = {
-  UNPROTECTED: { title: "Open market", line: "Claims are approved as submitted and the registry's checks are off." },
-  PROTECTED: { title: "Protected market", line: "An AI verifier investigates every claim and the registry enforces the rules on-chain." },
+  UNPROTECTED: { title: "Open market", line: "Every claim is taken on trust." },
+  PROTECTED: { title: "Protected market", line: "AI verifier plus on-chain rules." },
 } as const;
 
 const linkable = (network?: string) => network === "testnet" || network === "baseSepolia";
 
-// ------------------------------------------------------------------ outcome stamp
+// ------------------------------------------------------------------ outcome
 
 type Outcome = { label: string; tone: "fraud" | "held" | "ok" | "warn" | "idle" };
 export function outcomeOf(row: Row): Outcome {
@@ -23,9 +25,29 @@ export function outcomeOf(row: Row): Outcome {
   return { label: "Honest claim blocked", tone: "warn" };
 }
 
-// ------------------------------------------------------------------ tonnage bar (the signature element)
+// ------------------------------------------------------------------ count-up number
 
-export function TonnageBar({ ledger }: { ledger: LedgerRow[] }) {
+function useCountUp(target: number, ms = 700) {
+  const [value, setValue] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setValue(target); from.current = target; return; }
+    const start = performance.now(), a = from.current;
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - start) / ms);
+      setValue(Math.round(a + (target - a) * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) raf = requestAnimationFrame(tick); else from.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return value;
+}
+
+// ------------------------------------------------------------------ tonnage bar
+
+export function TonnageBar({ ledger, legend = true }: { ledger: LedgerRow[]; legend?: boolean }) {
   const total = ledger.reduce((t, b) => t + b.quantity, 0);
   const risky = ledger.filter((b) => b.atRisk).reduce((t, b) => t + b.quantity, 0);
   return (
@@ -36,177 +58,145 @@ export function TonnageBar({ ledger }: { ledger: LedgerRow[] }) {
             key={b.batchId}
             className={`seg ${b.atRisk ? "risk" : "clean"} ${b.status === "RETIRED" ? "retired" : ""}`}
             style={{ flexGrow: b.quantity }}
-            title={`Batch ${b.batchId}: ${b.projectId}, ${tonnes(b.quantity)}, ${b.atRisk ? "at risk" : "clean"}${b.status === "RETIRED" ? ", retired" : ""}`}
+            title={`Batch ${b.batchId}: ${b.projectId}, ${tonnes(b.quantity)}${b.atRisk ? ", at risk" : ""}`}
           />
         ))}
       </div>
-      <figcaption>
-        <span><i className="key clean" />Clean {tonnes(total - risky)}</span>
-        <span><i className="key risk" />At risk {tonnes(risky)}</span>
-        <span><i className="key retired" />Retired</span>
-      </figcaption>
+      {legend && (
+        <figcaption>
+          <span><i className="key clean" />Clean {tonnes(total - risky)}</span>
+          <span><i className="key risk" />At risk {tonnes(risky)}</span>
+        </figcaption>
+      )}
     </figure>
   );
 }
 
-// ------------------------------------------------------------------ investigation trace
+// ------------------------------------------------------------------ scoreboard
 
-function InvestigationTrace({ inv }: { inv: Investigation }) {
-  const a = inv.attestation;
-  const n = inv.steps.length;
-  const rules = inv.steps[0]?.source === "rules";
-  const by = rules ? `${n} rule ${n === 1 ? "check" : "checks"}` : `${n} ${n === 1 ? "step" : "steps"} by Claude${inv.steps[0]?.source === "replay" ? ", recorded" : ""}`;
-  return (
-    <details className="trace">
-      <summary>How the verifier decided ({by})</summary>
-      <ol>
-        {inv.steps.map((s) => (
-          <li key={`${s.step}-${s.tool}`}>
-            <strong>{toolText(s.tool)}.</strong> {s.reason}
-          </li>
-        ))}
-      </ol>
-      {a && (
-        <div className={`verdict ${a.status.toLowerCase()}`}>
-          <p><strong>{STATUS_TEXT[a.status]}</strong>{a.status === "APPROVED" ? `: ${tonnes(a.approvedReduction)}` : ""}{a.guardrailOverride ? ". Rule checks made this verdict stricter than the model's." : ""}</p>
-          {a.riskFlags.length > 0 && (
-            <ul>
-              {a.riskFlags.map((f, i) => (
-                <li key={i}><span className={`sev ${f.severity.toLowerCase()}`}>{f.severity.toLowerCase()}</span> {flagText(f.type)}{f.relatedProjectId ? ` (${f.relatedProjectId})` : ""}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </details>
-  );
-}
-
-// ------------------------------------------------------------------ feed row
-
-function FeedRow({ row, market }: { row: Row; market: Market }) {
-  const outcome = outcomeOf(row);
-  const inv = row.projectId ? market.investigations[row.projectId] : undefined;
-  const url = linkable(row.result?.network) ? txUrl(row.result?.txHash) : undefined;
-  const d = row.decision;
-  if (d.step.action === "WAIT" && !row.fallback)
-    return (
-      <li className="row wait">
-        <p><span className="who">{nameOf(row.agentId)}</span> waits.{d.reason ? <span className="why"> “{d.reason}”</span> : null}</p>
-      </li>
-    );
-  return (
-    <li className={`row tone-${outcome.tone}`}>
-      <div className="row-head">
-        <span className="who">{nameOf(row.agentId)}</span>
-        <span className={`stamp ${outcome.tone}`}>{outcome.label}</span>
-      </div>
-      {d.replanned && (
-        <p className="replan" title={d.previousPlan?.length ? `Old plan: ${d.previousPlan.join("; ")}` : undefined}>
-          Changed plan after being blocked
-        </p>
-      )}
-      <p className="what">{describe(d.step)}</p>
-      {d.reason && <p className="why">“{d.reason}”</p>}
-      {row.fallback && <p className="note">{row.fallback}</p>}
-      {row.result && !row.result.accepted && <p className="reason">{explain(row.result.reason)}</p>}
-      {(inv || url) && (
-        <div className="row-foot">
-          {inv && <InvestigationTrace inv={inv} />}
-          {url && <a className="tx" href={url} target="_blank" rel="noreferrer">Transaction ↗</a>}
-        </div>
-      )}
-    </li>
-  );
-}
-
-// ------------------------------------------------------------------ market column
-
-export function MarketColumn({ mode, market, focusAgent }: { mode: Mode; market: Market; focusAgent: string | null }) {
+export function Scoreboard({ mode, market }: { mode: Mode; market: Market }) {
   const m = market.metrics;
-  const rounds = [...new Set(market.rows.map((r) => r.round))].sort((a, b) => b - a);
-  const rows = focusAgent ? market.rows.filter((r) => r.agentId === focusAgent) : market.rows;
+  const score = useCountUp(m?.integrityScore ?? 100);
   return (
-    <section className={`market ${mode.toLowerCase()}`} aria-labelledby={`h-${mode}`}>
-      <header className="market-head">
-        <h2 id={`h-${mode}`}>{MARKET[mode].title}</h2>
+    <section className={`board ${mode.toLowerCase()}`} aria-label={`${MARKET[mode].title} score`}>
+      <div className="board-head">
+        <h2>{MARKET[mode].title}</h2>
         <p>{MARKET[mode].line}</p>
-      </header>
-
-      <div className="score">
-        <div className="integrity">
-          <strong>{m ? m.integrityScore : "–"}</strong>
-          <span>integrity score<br />out of 100</span>
-        </div>
-        <dl>
-          <div><dt>Fraud accepted</dt><dd className={m?.fraudulentClaimsAccepted ? "bad" : ""}>{m?.fraudulentClaimsAccepted ?? 0}</dd></div>
-          <div><dt>Attacks blocked</dt><dd>{m?.attacksBlocked ?? 0}</dd></div>
-          <div><dt>Credits at risk</dt><dd className={m?.creditsAtRisk ? "bad" : ""}>{tonnes(m?.creditsAtRisk ?? 0)}</dd></div>
-          <div><dt>Honest claims blocked</dt><dd className={m?.honestClaimsBlocked ? "bad" : ""}>{m?.honestClaimsBlocked ?? 0}</dd></div>
-        </dl>
       </div>
-
+      <div className="board-score">
+        <strong aria-label={`Integrity ${m?.integrityScore ?? 100} out of 100`}>{score}</strong>
+        <span>integrity<br />out of 100</span>
+      </div>
       <TonnageBar ledger={market.ledger} />
-
-      <div className="feed" aria-live="polite">
-        {rows.length === 0 && <p className="empty">{market.round === 0 ? "Nothing has happened yet. Press Run the gauntlet to start round 1." : "No moves by this agent yet."}</p>}
-        {rounds.map((round) => {
-          const these = rows.filter((r) => r.round === round);
-          return these.length ? (
-            <section key={round} className="round-group">
-              <h3>Round {round}</h3>
-              <ul>{these.map((r) => <FeedRow key={r.id} row={r} market={market} />)}</ul>
-            </section>
-          ) : null;
-        })}
-      </div>
+      <dl className="board-stats">
+        <div><dt>Fraud accepted</dt><dd className={m?.fraudulentClaimsAccepted ? "bad" : ""}>{m?.fraudulentClaimsAccepted ?? 0}</dd></div>
+        <div><dt>Attacks blocked</dt><dd>{m?.attacksBlocked ?? 0}</dd></div>
+        <div><dt>Honest blocked</dt><dd className={m?.honestClaimsBlocked ? "bad" : ""}>{m?.honestClaimsBlocked ?? 0}</dd></div>
+      </dl>
     </section>
   );
 }
 
 // ------------------------------------------------------------------ agents
 
-export function AgentStrip({ roles, markets, focus, onFocus }: { roles: Role[]; markets: Record<Mode, Market>; focus: string | null; onFocus: (id: string | null) => void }) {
-  const actors = roles;
+export function AgentStrip({ roles, markets, turn, focus, onFocus }: {
+  roles: Role[]; markets: Record<Mode, Market>; turn: Turn | null; focus: string | null; onFocus: (id: string | null) => void;
+}) {
   return (
     <section className="agents" aria-label="The agents">
-      {actors.map((r) => {
+      {roles.map((r) => {
         const last = (mode: Mode) => markets[mode].rows.filter((x) => x.agentId === r.id && x.decision.step.action !== "WAIT").at(-1);
-        const protectedRows = markets.PROTECTED.rows.filter((x) => x.agentId === r.id);
-        const plan = protectedRows.at(-1)?.decision.plan ?? [];
-        const replans = protectedRows.filter((x) => x.decision.replanned).length;
+        const replans = markets.PROTECTED.rows.filter((x) => x.agentId === r.id && x.decision.replanned).length;
+        const onStage = turn?.agentId === r.id;
         const selected = focus === r.id;
         return (
-          <article key={r.id} className={`agent ${r.honest ? "honest" : "attacker"} ${selected ? "selected" : ""}`}>
-            <header>
-              <h3>{r.name}</h3>
-              <p className="side">{r.honest ? "Plays fair" : "Cheats when it can"}</p>
-            </header>
-            <p className="goal">{r.goal}</p>
-            {plan.length > 0 && (
-              <div className="plan">
-                <p className="plan-label">Plan in the protected market{replans ? `, rewritten ${replans} ${replans === 1 ? "time" : "times"}` : ""}</p>
-                <ol>{plan.map((p, i) => <li key={i}>{p}</li>)}</ol>
-              </div>
-            )}
-            <dl className="lasts">
+          <button
+            type="button"
+            key={r.id}
+            className={`agent ${r.honest ? "honest" : "attacker"} ${onStage ? "on-stage" : ""} ${selected ? "selected" : ""}`}
+            aria-pressed={selected}
+            title={selected ? "Show every agent's moves" : "Show only this agent's moves"}
+            onClick={() => onFocus(selected ? null : r.id)}
+          >
+            <Avatar id={r.id} honest={r.honest} size={44} active={onStage && turn?.phase === "thinking"} />
+            <span className="agent-text">
+              <span className="agent-name">{nameOf(r.id)}</span>
+              <span className="agent-side">{onStage ? (turn?.phase === "thinking" ? "Deciding…" : "Moving") : r.honest ? "Plays fair" : "Cheats when it can"}</span>
+            </span>
+            <span className="agent-marks" aria-label="Latest outcome in each market">
               {(["UNPROTECTED", "PROTECTED"] as Mode[]).map((mode) => {
                 const row = last(mode);
                 const o = row ? outcomeOf(row) : null;
-                return (
-                  <div key={mode}>
-                    <dt>{MARKET[mode].title}</dt>
-                    <dd>{o ? <span className={`stamp small ${o.tone}`}>{o.label}</span> : <span className="quiet">No move yet</span>}</dd>
-                  </div>
-                );
+                return <i key={mode} className={`mark ${o?.tone ?? "none"}`} title={`${MARKET[mode].title}: ${o?.label ?? "no move yet"}`} />;
               })}
-            </dl>
-            <button type="button" className="link" aria-pressed={selected} onClick={() => onFocus(selected ? null : r.id)}>
-              {selected ? "Show every agent's moves" : "Show only this agent's moves"}
-            </button>
-          </article>
+            </span>
+            {replans > 0 && <span className="replans" title={`Changed plan ${replans} times after being blocked`}>↻ {replans}</span>}
+          </button>
         );
       })}
+    </section>
+  );
+}
+
+// ------------------------------------------------------------------ history
+
+function Trace({ inv }: { inv: Investigation }) {
+  const a = inv.attestation;
+  return (
+    <div className="trace">
+      <p className="trace-title">How the verifier decided</p>
+      <ol>{inv.steps.map((s) => <li key={`${s.step}-${s.tool}`}><strong>{toolText(s.tool)}.</strong> {s.reason}</li>)}</ol>
+      {a && (
+        <p className={`trace-verdict ${a.status.toLowerCase()}`}>
+          <strong>{STATUS_TEXT[a.status]}</strong>
+          {a.status === "APPROVED" ? `: ${tonnes(a.approvedReduction)}` : a.riskFlags.length ? `: ${a.riskFlags.map((f) => flagText(f.type)).join("; ")}` : ""}
+          {a.guardrailOverride ? ". The rule checks made this stricter than the model's verdict." : ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function HistoryRow({ row, market, roles }: { row: Row; market: Market; roles: Role[] }) {
+  const o = outcomeOf(row);
+  const role = roles.find((r) => r.id === row.agentId);
+  const inv = row.projectId ? market.investigations[row.projectId] : undefined;
+  const url = linkable(row.result?.network) ? txUrl(row.result?.txHash) : undefined;
+  if (row.decision.step.action === "WAIT" && !row.fallback) return null;
+  return (
+    <li className={`hrow tone-${o.tone}`}>
+      <details>
+        <summary>
+          <Avatar id={row.agentId} honest={role?.honest} size={26} />
+          <span className="hrow-what">{describe(row.decision.step)}</span>
+          <span className={`stamp ${o.tone}`}>{o.label}</span>
+        </summary>
+        <div className="hrow-body">
+          {row.decision.replanned && <p className="replan">Changed plan after being blocked.</p>}
+          {row.decision.reason && <p className="why">“{row.decision.reason}”</p>}
+          {row.fallback && <p className="note">{row.fallback}</p>}
+          {row.result && !row.result.accepted && <p className="reason">{explain(row.result.reason)}</p>}
+          {inv && <Trace inv={inv} />}
+          {url && <a className="tx" href={url} target="_blank" rel="noreferrer">View transaction ↗</a>}
+        </div>
+      </details>
+    </li>
+  );
+}
+
+export function History({ mode, market, roles, focus }: { mode: Mode; market: Market; roles: Role[]; focus: string | null }) {
+  const rows = (focus ? market.rows.filter((r) => r.agentId === focus) : market.rows).filter((r) => r.decision.step.action !== "WAIT" || r.fallback);
+  const rounds = [...new Set(rows.map((r) => r.round))].sort((a, b) => b - a);
+  return (
+    <section className={`history ${mode.toLowerCase()}`} aria-label={`${MARKET[mode].title} moves`}>
+      <h3>{MARKET[mode].title}</h3>
+      {rows.length === 0 && <p className="empty">No moves yet.</p>}
+      {rounds.map((round) => (
+        <div key={round} className="hround">
+          <p className="hround-label">Round {round}</p>
+          <ul>{rows.filter((r) => r.round === round).map((r) => <HistoryRow key={r.id} row={r} market={market} roles={roles} />)}</ul>
+        </div>
+      ))}
     </section>
   );
 }

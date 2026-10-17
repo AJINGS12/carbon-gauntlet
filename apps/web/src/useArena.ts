@@ -86,6 +86,24 @@ function turns(events: ArenaEvent[]): { prelude: ArenaEvent[]; turns: ArenaEvent
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** The turn on stage: one agent, its move in each market, revealed in two phases. */
+export interface Turn {
+  round: number;
+  agentId: string;
+  phase: "thinking" | "revealed";
+  rows: Partial<Record<Mode, Row>>;
+  investigation?: Investigation;   // the protected market's verifier investigation for this move, if any
+}
+
+const agentOf = (events?: ArenaEvent[]): string | undefined => {
+  for (const e of events ?? []) {
+    if (e.type === "agent_decision") return e.decision.agentId;
+    if (e.type === "agent_fallback") return e.agentId;
+  }
+  return undefined;
+};
+
 export type Status = "loading" | "ready" | "playing" | "paused" | "finished" | "error";
 
 export function useArena() {
@@ -94,6 +112,7 @@ export function useArena() {
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [speed, setSpeed] = useState(1);
+  const [turn, setTurn] = useState<Turn | null>(null);
   const speedRef = useRef(1);
   const pauseRef = useRef(false);
   const busyRef = useRef(false);
@@ -117,6 +136,7 @@ export function useArena() {
       const arena = info ?? (await fetchArena());
       setInfo(arena);
       const [u, p] = await Promise.all(MODES.map((mode) => createRun(mode)));
+      setTurn(null);
       setMarkets({
         UNPROTECTED: { ...emptyMarket(), runId: u.runId, metrics: u.metrics, ledger: u.ledger },
         PROTECTED: { ...emptyMarket(), runId: p.runId, metrics: p.metrics, ledger: p.ledger },
@@ -143,12 +163,29 @@ export function useArena() {
     const failed = [...ue, ...pe].find((e) => e.type === "error");
     if (failed && failed.type === "error") throw new Error(failed.message);
     const u = turns(ue), p = turns(pe);
-    setMarkets((m) => ({ UNPROTECTED: u.prelude.reduce(apply, m.UNPROTECTED), PROTECTED: p.prelude.reduce(apply, m.PROTECTED) }));
+    // Only this loop changes the markets while a round plays, so it keeps its own copy and publishes it.
+    let mu = u.prelude.reduce(apply, current.UNPROTECTED), mp = p.prelude.reduce(apply, current.PROTECTED);
+    setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
+    const pace = (ms: number) => sleep(ms / speedRef.current);
     for (let i = 0; i < Math.max(u.turns.length, p.turns.length); i++) {
-      setMarkets((m) => ({ UNPROTECTED: (u.turns[i] ?? []).reduce(apply, m.UNPROTECTED), PROTECTED: (p.turns[i] ?? []).reduce(apply, m.PROTECTED) }));
-      await sleep(1400 / speedRef.current);
+      const agentId = agentOf(p.turns[i]) ?? agentOf(u.turns[i]) ?? "";
+      const roundNo = mp.round;
+      const waiting = [u.turns[i], p.turns[i]].every((t) => !t || t.some((e) => e.type === "agent_decision" && e.decision.step.action === "WAIT"));
+      setTurn({ round: roundNo, agentId, phase: "thinking", rows: {} });
+      await pace(waiting ? 350 : 800);
+      mu = (u.turns[i] ?? []).reduce(apply, mu);
+      mp = (p.turns[i] ?? []).reduce(apply, mp);
+      setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
+      const rowU = mu.rows.at(-1)?.agentId === agentId && mu.rows.at(-1)?.round === roundNo ? mu.rows.at(-1) : undefined;
+      const rowP = mp.rows.at(-1)?.agentId === agentId && mp.rows.at(-1)?.round === roundNo ? mp.rows.at(-1) : undefined;
+      const investigation = rowP?.projectId ? mp.investigations[rowP.projectId] : undefined;
+      setTurn({ round: roundNo, agentId, phase: "revealed", rows: { UNPROTECTED: rowU, PROTECTED: rowP }, investigation });
+      // Hold long enough to read it: longer when the verifier's checks are being ticked off.
+      await pace(waiting ? 700 : 2200 + (investigation?.steps.length ?? 0) * 220);
     }
-    setMarkets((m) => ({ UNPROTECTED: u.end.reduce(apply, m.UNPROTECTED), PROTECTED: p.end.reduce(apply, m.PROTECTED) }));
+    mu = u.end.reduce(apply, mu);
+    mp = p.end.reduce(apply, mp);
+    setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
     const round = p.end.find((e) => e.type === "round_finished");
     if (round?.type === "round_finished" && round.round >= max) {
       // The anchor transaction is only known once the run finishes.
@@ -177,7 +214,7 @@ export function useArena() {
   }, [playNext]);
 
   return {
-    info, markets, status, error, speed, setSpeed,
+    info, markets, status, error, speed, setSpeed, turn,
     play: () => run(false),
     step: () => run(true),
     pause: () => { pauseRef.current = true; },

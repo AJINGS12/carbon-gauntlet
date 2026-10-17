@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Home from "./Home";
 import Arena from "./Arena";
 import { REPO_URL } from "./api";
+import { Logo } from "./Avatar";
 
 /** Two pages, no router library: "/" is the home page, "/arena" runs the gauntlet. */
 function usePath(): [string, (to: string) => void] {
@@ -26,19 +27,20 @@ export default function App() {
   const link = (to: string) => (e: React.MouseEvent) => { e.preventDefault(); go(to); };
 
   useEffect(() => {
-    document.title = arena ? "The Arena · Carbon Gauntlet" : "Carbon Gauntlet: only honest credits make it through";
+    document.title = arena ? "The Arena · Carbon Gauntlet" : "Carbon Gauntlet";
   }, [arena]);
 
   return (
     <>
       <a className="skip" href="#main">Skip to content</a>
       <nav className="topbar" aria-label="Main">
-        <a className="brand" href="/" onClick={link("/")} aria-label="Carbon Gauntlet home">Carbon Gauntlet</a>
+        <a className="brand" href="/" onClick={link("/")} aria-label="Carbon Gauntlet home">
+          <Logo size={44} />
+        </a>
         <div className="nav-links">
-          {!arena && <a href="#how">How it works</a>}
           <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
           {arena ? (
-            <a className="button" href="/" onClick={link("/")}>About the project</a>
+            <a className="button" href="/" onClick={link("/")}>About</a>
           ) : (
             <a className="button primary" href="/arena" onClick={link("/arena")}>Open the Arena</a>
           )}
@@ -46,7 +48,7 @@ export default function App() {
       </nav>
       <main id="main">{arena ? <Arena /> : <Home go={go} />}</main>
       <footer className="site-foot">
-        <p>Carbon Gauntlet is an experimental prototype built for the IEEE ClimateChain Global Hackathon 2026. All projects are synthetic and it runs on a testnet: it is not a real carbon registry.</p>
+        <p>Prototype for the IEEE ClimateChain Global Hackathon 2026. Synthetic projects on a testnet: not a real carbon registry.</p>
       </footer>
     </>
   );
