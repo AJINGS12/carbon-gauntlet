@@ -21,7 +21,7 @@ AI agents ──actions──▶ Simulation engine ──claims──▶ AI Veri
 
 ## Results
 
-Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier). Replay it free with `npm run sim -w apps/api -- --demo`.
+Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier), replayed on Base Sepolia so every action links to a real transaction. Replay it free with `npm run sim -w apps/api -- --demo`.
 
 | | Unprotected | Protected |
 | --- | --- | --- |
@@ -87,7 +87,7 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 
 | Done | Next |
 | --- | --- |
-| CreditRegistry contract + 8 tests (incl. evidence squatting); Base Sepolia adapter, run isolation, contract-vs-mock parity check, failed-tx proof ([docs/blockchain.md](docs/blockchain.md)) | Deploy to Base Sepolia |
+| CreditRegistry contract + 8 tests (incl. evidence squatting), **live on Base Sepolia**; contract matches the mock verdict-for-verdict; every demo action is a real transaction ([docs/blockchain.md](docs/blockchain.md)) | |
 | Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 12/12 on live eval, 21 tests ([docs/verifier.md](docs/verifier.md)) | |
 | AI agents: Claude decides each move, invents clone attacks, replans after rejection; objective attack classification; recorded runs; 10 tests ([docs/agents.md](docs/agents.md)) | |
 | Engine, metrics, run anchoring, SSE API | Postgres persistence, ledger + results screens, map |

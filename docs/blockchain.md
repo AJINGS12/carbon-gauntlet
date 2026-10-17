@@ -2,6 +2,16 @@
 
 The same `CreditRegistry` contract is deployed twice on the Base Sepolia testnet: **Unprotected** (`strictMode = false`) and **Protected** (`strictMode = true`). Every agent action becomes a real transaction, and in Protected mode the contract itself rejects double counting, minting before approval, retired-credit resale, and cross-border transfers without a corresponding adjustment.
 
+## Live deployment (Base Sepolia, 16 Oct 2026)
+
+| Registry | Address |
+| --- | --- |
+| Unprotected (`strictMode = false`) | [0x42c1e93857e4b42C989C5c952c252d7D3fB8543E](https://sepolia.basescan.org/address/0x42c1e93857e4b42C989C5c952c252d7D3fB8543E) |
+| Protected (`strictMode = true`) | [0x0abBb146d782bE58555cC2b63cFe0e14FD234c9F](https://sepolia.basescan.org/address/0x0abBb146d782bE58555cC2b63cFe0e14FD234c9F) |
+
+- **Parity check (17 Oct):** `chain:check` gave verdicts identical to the mock in both modes, twice on the same deployment.
+- **Recorded demo on-chain (17 Oct):** all 48 agent actions replayed as transactions; the 12 blocked attacks in Protected mode were sent anyway and appear as failed transactions. Run anchors: [Unprotected](https://sepolia.basescan.org/tx/0xf1eddb330c7b474874472cfdc166668b461e5868b7007c95b6e0b65b7cd2d9d2), [Protected](https://sepolia.basescan.org/tx/0x72c0358fffe0e9738390b95b239d6af488c102c84fb04fbbef669f70d317156c).
+
 ## How the app talks to the chain
 
 | `CHAIN_MODE` | What it uses |
