@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import Home from "./Home";
 import Arena from "./Arena";
-import { REPO_URL } from "./api";
 import { Logo } from "./Avatar";
 
 /** Two pages, no router library: "/" is the home page, "/arena" runs the gauntlet. */
@@ -38,7 +37,6 @@ export default function App() {
           <Logo size={44} />
         </a>
         <div className="nav-links">
-          <a href={REPO_URL} target="_blank" rel="noreferrer">GitHub</a>
           {arena ? (
             <a className="button" href="/" onClick={link("/")}>About</a>
           ) : (

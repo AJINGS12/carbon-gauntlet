@@ -1,5 +1,5 @@
 import type { ArenaInfo, LedgerRow, Mode } from "./api";
-import { addressUrl, REPO_URL, txUrl } from "./api";
+import { addressUrl, txUrl } from "./api";
 import type { Market } from "./useArena";
 import { MARKET } from "./Market";
 import { countryOf, modelText, nameOf, tonnes } from "./text";
@@ -72,7 +72,6 @@ export function Results({ info, markets }: { info: ArenaInfo; markets: Record<Mo
               </li>
             ) : null;
           })}
-          <li><a href={REPO_URL} target="_blank" rel="noreferrer">Source code and tests</a></li>
         </ul>
         {rec && <p className="fine">Recorded live on {date(rec.recordedAt)} with {modelText(rec.model)}.</p>}
       </div>

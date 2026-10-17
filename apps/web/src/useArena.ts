@@ -181,7 +181,7 @@ export function useArena() {
       const investigation = rowP?.projectId ? mp.investigations[rowP.projectId] : undefined;
       setTurn({ round: roundNo, agentId, phase: "revealed", rows: { UNPROTECTED: rowU, PROTECTED: rowP }, investigation });
       // Hold long enough to read it: longer when the verifier's checks are being ticked off.
-      await pace(waiting ? 700 : 2200 + (investigation?.steps.length ?? 0) * 220);
+      await pace(waiting ? 900 : 2700 + (investigation?.steps.length ?? 0) * 220);
     }
     mu = u.end.reduce(apply, mu);
     mp = p.end.reduce(apply, mp);

@@ -7,6 +7,8 @@ import { SiteMap } from "./SiteMap";
 import { LedgerTable, Results } from "./Results";
 
 const SPEEDS = [1, 2, 4];
+/** Shown on the stage while the API is still loading the real roles. */
+const CAST = ["honest-dev", "opportunist-dev", "broker", "coal-nation"].map((id) => ({ id, name: id, honest: id === "honest-dev", country: "", goal: "", portfolio: [] }));
 
 export default function Arena() {
   const { info, markets, status, error, speed, setSpeed, turn, play, step, pause, reset } = useArena();
@@ -63,7 +65,7 @@ export default function Arena() {
       {info && <AgentStrip roles={info.roles} markets={markets} turn={liveTurn} focus={focus} onFocus={setFocus} />}
 
       <div ref={stageRef} className="stage-anchor">
-        {info && <Stage turn={liveTurn} roles={info.roles} status={status} round={round} max={max} />}
+        <Stage turn={liveTurn} roles={info?.roles ?? CAST} status={status} round={round} max={max} speed={speed} />
       </div>
 
       <div className="boards">

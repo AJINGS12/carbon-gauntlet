@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { addressUrl, fetchArena, REPO_URL, type ArenaInfo, type Mode } from "./api";
+import { addressUrl, fetchArena, type ArenaInfo, type Mode } from "./api";
 import { TonnageBar } from "./Market";
-import { Avatar } from "./Avatar";
+import { Toy } from "./Avatar";
 
 const STEPS = [
   { title: "Claim", body: "A project submits its land, evidence and the tonnes of CO₂ it says it saved." },
@@ -42,7 +42,7 @@ export default function Home({ go }: { go: (path: string) => void }) {
         <figure className="hero-result" aria-label="Result of the recorded run">
           {info && (
             <div className="hero-cast" aria-hidden="true">
-              {info.roles.map((r) => <Avatar key={r.id} id={r.id} honest={r.honest} size={34} />)}
+              {info.roles.map((r) => <Toy key={r.id} id={r.id} size={34} />)}
               <span>Same agents, same goals</span>
             </div>
           )}
@@ -83,10 +83,7 @@ export default function Home({ go }: { go: (path: string) => void }) {
           <strong>Verified contracts</strong><span>Source published on BaseScan</span>
         </a>
         <a href="/arena" onClick={open}>
-          <strong>Every move on-chain</strong><span>Each one links to its transaction</span>
-        </a>
-        <a href={REPO_URL} target="_blank" rel="noreferrer">
-          <strong>Open source</strong><span>Code and tests on GitHub</span>
+          <strong>Every move on-chain</strong><span>Even blocked attacks leave a failed transaction</span>
         </a>
       </section>
 
