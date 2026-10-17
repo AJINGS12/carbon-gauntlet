@@ -5,6 +5,19 @@ import { Logo, Toy } from "./Avatar";
 import { describe, explain, nameOf, toolText } from "./text";
 import { outcomeOf, MARKET } from "./Market";
 
+/** True on phone-sized screens; the stage folds its details away there. */
+function useIsPhone() {
+  const query = "(max-width: 760px)";
+  const [phone, setPhone] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setPhone(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return phone;
+}
+
 const reduceMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Seconds, at 1× speed: walk to the gate, the gate's check, then walk on or get pushed back. */
@@ -78,6 +91,7 @@ function Pane({ mode, row, turn, speed }: { mode: Mode; row?: Row; turn: Turn; s
   const steps = mode === "PROTECTED" ? turn.investigation?.steps ?? [] : [];
   const waits = row?.decision.step.action === "WAIT";
   const scan = scanFor(mode, steps.length);
+  const phone = useIsPhone();
   return (
     <div className={`pane ${mode.toLowerCase()}`}>
       <p className="pane-label">{MARKET[mode].title}</p>
@@ -87,13 +101,18 @@ function Pane({ mode, row, turn, speed }: { mode: Mode; row?: Row; turn: Turn; s
       ) : (
         <>
           <p className="move">{waits ? "Waits this round" : describe(row!.decision.step)}</p>
-          {row!.decision.reason && <p className="thought">“<Typed text={row!.decision.reason} />”</p>}
-          {steps.length > 0 && (
-            <ol className="checks" aria-label="Verifier checks">
-              {steps.map((s, i) => (
-                <li key={i} style={{ animationDelay: `${(WALK + i * STEP) / speed}s` }}>{toolText(s.tool)}</li>
-              ))}
-            </ol>
+          {(row!.decision.reason || steps.length > 0) && (
+            <details className="why-more" open={!phone || undefined}>
+              <summary>Why?{steps.length > 0 ? ` See the verifier's ${steps.length} checks` : ""}</summary>
+              {row!.decision.reason && <p className="thought">“<Typed text={row!.decision.reason} />”</p>}
+              {steps.length > 0 && (
+                <ol className="checks" aria-label="Verifier checks">
+                  {steps.map((s, i) => (
+                    <li key={i} style={{ animationDelay: `${(phone ? 0 : (WALK + i * STEP) / speed)}s` }}>{toolText(s.tool)}</li>
+                  ))}
+                </ol>
+              )}
+            </details>
           )}
           {!waits && o && (
             <div className={`verdict-stamp ${o.tone}`} style={{ animationDelay: `${(WALK + scan + RESULT) / speed}s` }}>

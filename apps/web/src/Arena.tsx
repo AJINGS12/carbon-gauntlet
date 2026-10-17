@@ -42,12 +42,14 @@ export default function Arena() {
         <div className="buttons">
           {playing ? (
             <button type="button" className="primary" onClick={pause}>Pause</button>
+          ) : status === "finished" ? (
+            <button type="button" className="primary" onClick={() => void reset()}>Watch again</button>
           ) : (
-            <button type="button" className="primary" onClick={() => { toStage(); void play(); }} disabled={busy || status === "finished"}>
+            <button type="button" className="primary" onClick={() => { toStage(); void play(); }} disabled={busy}>
               {round === 0 ? "Run the gauntlet" : "Continue"}
             </button>
           )}
-          <button type="button" onClick={() => { toStage(); void step(); }} disabled={playing || busy || status === "finished"}>Next round</button>
+          <button type="button" onClick={() => { toStage(); void step(); }} disabled={playing || busy || status === "finished"}>Next<span className="hide-phone">&nbsp;round</span></button>
           <button type="button" onClick={() => void reset()} disabled={status === "loading"}>Restart</button>
           <div className="speed" role="radiogroup" aria-label="Playback speed">
             {SPEEDS.map((s) => (
