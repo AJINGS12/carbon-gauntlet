@@ -416,6 +416,44 @@ button.link:hover:not(:disabled) { background: none; color: var(--ink); }
   .map { height: 340px; }
 }
 
+
+/* ---------------------------------------------------------------- try to cheat it */
+.try-head { max-width: 760px; margin: 8px 0 22px; }
+.try-head h1 { font-size: clamp(44px, 7vw, 76px); font-weight: 900; font-stretch: 62%; text-transform: uppercase; line-height: .9; }
+.try-head .lede { margin: 12px 0 6px; }
+.try-grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.trick-list { display: flex; flex-direction: column; gap: 8px; }
+.trick { justify-content: flex-start; gap: 12px; text-align: left; padding: 12px 14px; border-radius: 10px; border-color: var(--rule); font-weight: 400; }
+.trick > span { display: flex; flex-direction: column; gap: 2px; }
+.trick strong { font: 800 18px/1.1 var(--display); font-stretch: 75%; }
+.trick > span > span { font-size: 13px; color: var(--ink-2); }
+.trick.on { border: 2px solid var(--ink); background: #fff; box-shadow: 0 4px 0 -1px var(--ink); }
+.trick-options { display: flex; flex-direction: column; gap: 12px; margin: 14px 0 0; padding: 14px; border-radius: 10px; background: var(--sheet); border: 1px solid var(--rule); }
+.trick-options label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; }
+.trick-options select, .trick-options textarea { font: 15px var(--body); padding: 8px 10px; border: 1px solid var(--ink-2); border-radius: 6px; background: #fff; color: var(--ink); }
+.trick-options input[type="range"] { accent-color: var(--green); }
+.send { width: 100%; margin-top: 14px; min-height: 50px; font-size: 17px; }
+.playing-as { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+.try-stage { position: sticky; top: 12px; scroll-margin-top: 8px; }
+.tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 0; }
+.tally div { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 14px; }
+.tally dt { font-size: 13px; color: var(--ink-2); }
+.tally dd { margin: 0; font: 900 34px/1 var(--display); font-stretch: 62%; }
+.tally dd.bad { color: var(--red); }
+.tally dd.good { color: var(--green); }
+.try-next { margin-top: 10px; font-size: 15px; }
+@media (max-width: 900px) {
+  .try-grid { grid-template-columns: 1fr; }
+  .try-stage { position: static; }
+}
+@media (max-width: 760px) {
+  .page.try { padding-bottom: 32px; }
+  .try .stage.idle .stage-cast { display: flex; }
+  .tally { grid-template-columns: repeat(3, 1fr); }
+  .tally dd { font-size: 28px; }
+  .trick { padding: 10px 12px; }
+}
+
 /* ---------------------------------------------------------------- phones: built for one thumb */
 @media (max-width: 760px) {
   .page.arena { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }

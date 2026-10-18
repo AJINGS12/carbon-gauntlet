@@ -133,3 +133,11 @@ export async function playRound(runId: string): Promise<ArenaEvent[]> {
 
 export const txUrl = (hash?: string) => (hash?.startsWith("0x") && hash.length === 66 ? `${EXPLORER}/tx/${hash}` : undefined);
 export const addressUrl = (address: string) => `${EXPLORER}/address/${address}`;
+
+export type TrickId = "copy-report" | "claim-land" | "inflate" | "resell-retired" | "no-adjustment" | "sweet-talk";
+export interface TrickRequest { trick: TrickId; copyFrom?: string; shiftKm?: number; note?: string }
+
+/** Runs one trick in a fresh open market and a fresh protected market (rule checks only, no AI calls). */
+export const tryTrick = (req: TrickRequest) =>
+  fetch(`${API}/sandbox`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) })
+    .then((r) => json<Record<Mode, ArenaEvent[]>>(r));

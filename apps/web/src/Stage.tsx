@@ -85,7 +85,7 @@ function Lane({ mode, row, turn, scan }: { mode: Mode; row?: Row; turn: Turn; sc
   );
 }
 
-function Pane({ mode, row, turn, speed }: { mode: Mode; row?: Row; turn: Turn; speed: number }) {
+export function Pane({ mode, row, turn, speed }: { mode: Mode; row?: Row; turn: Turn; speed: number }) {
   const thinking = turn.phase === "thinking" || !row;
   const o = row ? outcomeOf(row) : null;
   const steps = mode === "PROTECTED" ? turn.investigation?.steps ?? [] : [];

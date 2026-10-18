@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Home from "./Home";
 import Arena from "./Arena";
+import Try from "./Try";
 import { Logo } from "./Avatar";
 
 /** Two pages, no router library: "/" is the home page, "/arena" runs the gauntlet. */
@@ -23,11 +24,12 @@ function usePath(): [string, (to: string) => void] {
 export default function App() {
   const [path, go] = usePath();
   const arena = path.startsWith("/arena");
+  const trying = path.startsWith("/try");
   const link = (to: string) => (e: React.MouseEvent) => { e.preventDefault(); go(to); };
 
   useEffect(() => {
-    document.title = arena ? "The Arena · Carbon Gauntlet" : "Carbon Gauntlet";
-  }, [arena]);
+    document.title = arena ? "The Arena · Carbon Gauntlet" : trying ? "Try to cheat it · Carbon Gauntlet" : "Carbon Gauntlet";
+  }, [arena, trying]);
 
   return (
     <>
@@ -37,14 +39,12 @@ export default function App() {
           <Logo size={44} />
         </a>
         <div className="nav-links">
-          {arena ? (
-            <a className="button" href="/" onClick={link("/")}>About</a>
-          ) : (
-            <a className="button primary" href="/arena" onClick={link("/arena")}>Open the Arena</a>
-          )}
+          {!trying && <a href="/try" onClick={link("/try")}>Try to cheat it</a>}
+          {!arena && <a className={trying ? "button primary" : "button primary"} href="/arena" onClick={link("/arena")}>Open the Arena</a>}
+          {arena && <a className="button" href="/" onClick={link("/")}>About</a>}
         </div>
       </nav>
-      <main id="main">{arena ? <Arena /> : <Home go={go} />}</main>
+      <main id="main">{arena ? <Arena /> : trying ? <Try go={go} /> : <Home go={go} />}</main>
       <footer className="site-foot">
         <p>Prototype for the IEEE ClimateChain Global Hackathon 2026. Synthetic projects on a testnet: not a real carbon registry.</p>
       </footer>

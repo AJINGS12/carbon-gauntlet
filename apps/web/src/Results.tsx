@@ -73,6 +73,7 @@ export function Results({ info, markets }: { info: ArenaInfo; markets: Record<Mo
             ) : null;
           })}
         </ul>
+        <p><a href="/try">Now try to cheat it yourself</a></p>
         {rec && <p className="fine">Recorded live on {date(rec.recordedAt)} with {modelText(rec.model)}.</p>}
       </div>
     </section>

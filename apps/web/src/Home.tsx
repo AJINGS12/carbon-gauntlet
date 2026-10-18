@@ -35,7 +35,7 @@ export default function Home({ go }: { go: (path: string) => void }) {
           <p className="lede">AI agents try to cheat a carbon market. An AI verifier and an on-chain registry stop them. Watch it happen.</p>
           <div className="cta">
             <a className="button primary big" href="/arena" onClick={open}>Run the gauntlet</a>
-            <a className="button big" href="#how">How it works</a>
+            <a className="button big" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>Try to cheat it</a>
           </div>
         </div>
 
@@ -89,7 +89,10 @@ export default function Home({ go }: { go: (path: string) => void }) {
 
       <section className="closing">
         <h2>Six rounds. Four agents. See what gets through.</h2>
-        <a className="button primary big" href="/arena" onClick={open}>Run the gauntlet</a>
+        <div className="cta">
+          <a className="button primary big" href="/arena" onClick={open}>Run the gauntlet</a>
+          <a className="button big" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>Try to cheat it</a>
+        </div>
       </section>
     </div>
   );

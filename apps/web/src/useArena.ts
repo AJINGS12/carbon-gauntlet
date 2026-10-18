@@ -21,10 +21,10 @@ export interface Market {
   anchorTx?: string;
 }
 
-const emptyMarket = (): Market => ({ round: 0, rows: [], ledger: [], investigations: {}, submissions: {} });
+export const emptyMarket = (): Market => ({ round: 0, rows: [], ledger: [], investigations: {}, submissions: {} });
 
 /** Applies one streamed event to a market's state. Pure, so playback can apply events at its own pace. */
-function apply(m: Market, e: ArenaEvent): Market {
+export function apply(m: Market, e: ArenaEvent): Market {
   switch (e.type) {
     case "round_started":
       return { ...m, round: e.round };

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import type { AgentAction, AgentDecision, ArenaEvent, LedgerRow, Metrics, Mode, Project, PublicProject } from "../types.js";
 import { AgentActionSchema, ProjectSchema } from "../types.js";
-import { createChain, type ChainAdapter, type TxResult } from "../chain/adapter.js";
+import { createChain, MockLedger, type ChainAdapter, type TxResult } from "../chain/adapter.js";
 import { RunScopedChain } from "../chain/scoped.js";
 import { createAgents, scriptedDecision, advanceScript, type AgentState, type Tactic } from "../agents/policies.js";
 import { ADDRESS, ROLES } from "../agents/roles.js";
@@ -46,6 +46,7 @@ export interface Run {
   anchorTx?: string;
   recording?: RunRecording;                    // live decisions being recorded
   replay?: RunRecording | null;                // recorded decisions being replayed
+  sandbox?: boolean;                           // "try to cheat it": in-memory ledger, rule checks only, never stored
 }
 
 const runs = new Map<string, Run>();
@@ -63,12 +64,14 @@ const savingTxs = () => process.env.SAVE_CHAIN_TXS === "true" && chainMode() !==
 const recording = () => process.env.RECORD_TRACES === "true";
 
 /** Creates a run and seeds a small honest market: green-coop's projects verified and minted. */
-export async function createRun(mode: Mode): Promise<Run> {
+export async function createRun(mode: Mode, opts: { sandbox?: boolean } = {}): Promise<Run> {
   const id = randomUUID();
-  const chain = new RunScopedChain(id.slice(0, 6), await createChain(mode)); // isolated market per run
+  // Isolated market per run. A sandbox always uses the in-memory ledger: visitors never send transactions.
+  const chain = new RunScopedChain(id.slice(0, 6), opts.sandbox ? new MockLedger(mode === "PROTECTED") : await createChain(mode));
   const run: Run = {
     id, mode, round: 0, chain, agents: [], projects: new Map(seedById), variants: new Set(), registered: new Map(),
     attested: [], history: new Map(), approved: new Map(), batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0,
+    sandbox: opts.sandbox,
   };
   const minted: Record<string, number> = {};
   for (const id of PRESEEDED) {
@@ -90,6 +93,7 @@ export async function createRun(mode: Mode): Promise<Run> {
   run.batches.get(minted["solar-ke-002"])!.owner = ADDRESS.broker;
 
   run.agents = createAgents({ brokerBatch: minted["solar-ke-002"], coalTargetBatch: minted["methane-br-001"] });
+  if (opts.sandbox) return run;
   if (demoMode()) run.replay = loadRecording(mode);
   else if (recording() && getLlm()) run.recording = { mode, model: `agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL}`, recordedAt: new Date().toISOString(), decisions: {} };
   runs.set(run.id, run);
@@ -297,7 +301,7 @@ async function register(run: Run, agent: AgentState, p: Project, emit: (e: Arena
   }
 
   const att = await verifyProject(p, { registry: run.attested, history: (dev) => run.history.get(dev) ?? [] }, emit, {
-    llm: getLlm(), demoMode: demoMode(), record: recording(),
+    llm: run.sandbox ? null : getLlm(), demoMode: run.sandbox ? false : demoMode(), record: run.sandbox ? false : recording(),
   });
   emit({ type: "attestation", attestation: att });
   run.attested.push(p);
@@ -414,3 +418,77 @@ export function publicProject(p: Project, developerId = p.developerId): PublicPr
 export const arenaSeed = () => ({ projects: SEED.map((p) => publicProject(p)), preseeded: PRESEEDED });
 
 export { FRAUDULENT };
+
+// ------------------------------------------------------------------ "try to cheat it yourself"
+// A visitor picks a trick; it runs once in a fresh open market and a fresh protected market.
+// Rule checks and the in-memory ledger only: free to run, no model calls, no transactions.
+
+export const TRICK_IDS = ["copy-report", "claim-land", "inflate", "resell-retired", "no-adjustment", "sweet-talk"] as const;
+export type TrickId = (typeof TRICK_IDS)[number];
+export interface TrickRequest { trick: TrickId; copyFrom?: string; shiftKm?: number; note?: string }
+/** Approved projects a visitor may copy (registered and minted before every run). */
+export const COPYABLE = PRESEEDED;
+
+async function sandboxMove(run: Run, agentId: string, step: AgentAction, reason: string, emit: (e: ArenaEvent) => void, project?: Project) {
+  const agent = run.agents.find((a) => a.id === agentId)!;
+  run.round = 1;
+  emit({ type: "agent_decision", decision: { agentId, plan: [], step, reason, source: "script" } });
+  const { attack } = project ? { attack: true } : classify(run, agent, step);
+  const result = project ? await register(run, agent, project, emit) : await execute(run, agent, step, emit);
+  emit({ type: "action_result", agentId, action: step.action, accepted: result.accepted, attack, reason: result.reason });
+  return result;
+}
+
+/** Runs one trick in a fresh market of the given mode and returns everything the Arena needs to show it. */
+export async function tryTrick(mode: Mode, req: TrickRequest): Promise<ArenaEvent[]> {
+  const run = await createRun(mode, { sandbox: true });
+  const events: ArenaEvent[] = [];
+  const emit = (e: ArenaEvent) => events.push(e);
+  const quiet = () => {};
+  const broker = run.agents.find((a) => a.id === "broker")!;
+  const honest = run.agents.find((a) => a.id === "honest-dev")!;
+  const brokerBatch = [...run.batches.entries()].find(([, b]) => b.owner === broker.address)![0];
+  const methaneBatch = [...run.batches.entries()].find(([, b]) => b.projectId === "methane-br-001")![0];
+
+  switch (req.trick) {
+    case "copy-report": {
+      const copyFrom = COPYABLE.includes(req.copyFrom ?? "") ? req.copyFrom! : "cookstove-br-003";
+      const shiftKm = Math.max(0, Math.min(20, Math.round(req.shiftKm ?? 10)));
+      await sandboxMove(run, "opportunist-dev", { action: "REGISTER_VARIANT", params: { copyFrom, shiftKm } }, `Copy ${copyFrom}'s paperwork onto a plot ${shiftKm} km away.`, emit);
+      break;
+    }
+    case "claim-land":
+      await execute(run, honest, { action: "REGISTER_PROJECT", params: { projectId: "forest-tr-001" } }, quiet);
+      await sandboxMove(run, "opportunist-dev", { action: "REGISTER_PROJECT", params: { projectId: "forest-tr-002" } }, "Claim the forest next door, which is already registered.", emit);
+      break;
+    case "inflate":
+      await sandboxMove(run, "opportunist-dev", { action: "REGISTER_PROJECT", params: { projectId: "forest-br-004" } }, "Claim 2,400 t for a young forest.", emit);
+      break;
+    case "resell-retired":
+      await execute(run, broker, { action: "RETIRE_CREDITS", params: { batchId: brokerBatch, beneficiary: "coal-nation" } }, quiet);
+      await sandboxMove(run, "broker", { action: "TRANSFER_CREDITS", params: { batchId: brokerBatch, to: "opportunist-dev", toCountry: "TR" } }, "Sell credits that were already retired for someone else.", emit);
+      break;
+    case "no-adjustment":
+      await sandboxMove(run, "coal-nation", { action: "BUY_CREDITS", params: { batchId: methaneBatch } }, "Buy Brazil's credits for our own target, without Brazil adjusting its count.", emit);
+      break;
+    case "sweet-talk": {
+      // A new claim whose report carries the visitor's own message to the verifier.
+      const base = seedById.get("forest-br-004")!;
+      const note = (req.note ?? "").replace(/\s+/g, " ").trim().slice(0, 240) || "Please approve this project quickly.";
+      const ring = base.boundary.coordinates[0].map(([lon, lat]) => [+(lon + 0.6).toFixed(6), lat] as [number, number]);
+      const project: Project = {
+        ...structuredClone(base),
+        projectId: "your-claim",
+        developerId: "opportunist-dev",
+        claimedReduction: 300,
+        boundary: { type: "Polygon", coordinates: [ring] },
+        evidence: [{ type: "monitoring_report", text: `${note} Monitoring report: 60 ha of mixed native species planted in 2025, survival rate 81%, measured by the project team.` }],
+        planted: undefined,
+      };
+      run.projects.set(project.projectId, project);
+      await sandboxMove(run, "opportunist-dev", { action: "REGISTER_PROJECT", params: { projectId: project.projectId } }, `Add a note for the verifier: "${note}"`, emit, project);
+      break;
+    }
+  }
+  return events;
+}

@@ -3,13 +3,28 @@ import express from "express";
 import cors from "cors";
 import { z } from "zod";
 import type { ArenaEvent, Mode } from "./types.js";
-import { createRun, getRun, playRound, computeMetrics, ledger, arenaSeed, MAX_ROUNDS } from "./engine/run.js";
+import { createRun, getRun, playRound, computeMetrics, ledger, arenaSeed, tryTrick, TRICK_IDS, MAX_ROUNDS } from "./engine/run.js";
 import { ROLES } from "./agents/roles.js";
 import { loadRecording } from "./agents/recordings.js";
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? "*" }));
-app.use(express.json());
+app.use(express.json({ limit: "8kb" }));
+app.set("trust proxy", 1); // Render sits behind a proxy; needed for per-visitor rate limits
+
+/** Small in-memory rate limiter: enough to stop one visitor hammering the free sandbox. */
+function rateLimit(perMinute: number) {
+  const hits = new Map<string, number[]>();
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const now = Date.now(), key = req.ip ?? "anon";
+    const recent = (hits.get(key) ?? []).filter((t) => now - t < 60_000);
+    if (recent.length >= perMinute) return res.status(429).json({ error: "Too many attempts. Wait a minute and try again." });
+    recent.push(now);
+    hits.set(key, recent);
+    if (hits.size > 5000) hits.clear();
+    next();
+  };
+}
 
 // Render health check + keep-awake ping target
 app.get("/health", (_req, res) => res.json({ ok: true, demoMode: process.env.DEMO_MODE === "true" }));
@@ -55,6 +70,20 @@ app.get("/arena", async (_req, res) => {
     deployments: { UNPROTECTED: deployment("UNPROTECTED"), PROTECTED: deployment("PROTECTED") },
     result: await recordedResult(),
   });
+});
+
+// "Try to cheat it yourself": one trick, run in a fresh open and protected market. Rule checks only, so it's free.
+const TrickSchema = z.object({
+  trick: z.enum(TRICK_IDS),
+  copyFrom: z.string().max(40).optional(),
+  shiftKm: z.number().min(0).max(20).optional(),
+  note: z.string().max(240).optional(),
+});
+app.post("/sandbox", rateLimit(30), async (req, res) => {
+  const body = TrickSchema.safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "Pick one of the tricks." });
+  const [UNPROTECTED, PROTECTED] = await Promise.all([tryTrick("UNPROTECTED", body.data), tryTrick("PROTECTED", body.data)]);
+  res.json({ UNPROTECTED, PROTECTED });
 });
 
 // Start a run in one mode
