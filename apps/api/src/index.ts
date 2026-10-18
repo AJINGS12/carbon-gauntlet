@@ -3,7 +3,8 @@ import express from "express";
 import cors from "cors";
 import { z } from "zod";
 import type { ArenaEvent, Mode } from "./types.js";
-import { createRun, getRun, playRound, computeMetrics, ledger, arenaSeed, tryTrick, TRICK_IDS, MAX_ROUNDS } from "./engine/run.js";
+import { timingSafeEqual } from "node:crypto";
+import { createRun, getRun, playRound, computeMetrics, ledger, arenaSeed, tryTrick, canRunLive, TRICK_IDS, MAX_ROUNDS } from "./engine/run.js";
 import { ROLES } from "./agents/roles.js";
 import { loadRecording } from "./agents/recordings.js";
 
@@ -48,6 +49,41 @@ function recordedResult() {
   return preview;
 }
 
+/**
+ * Live runs: Claude decides every move now, instead of replaying the recording. They cost API credit,
+ * so they need an access code (LIVE_RUN_CODE) and are capped per day (LIVE_RUNS_PER_DAY, default 10).
+ * Without a model key or a code, live runs are simply unavailable and the site stays replay-only.
+ */
+const liveCode = () => process.env.LIVE_RUN_CODE ?? "";
+const livePerDay = () => Number(process.env.LIVE_RUNS_PER_DAY ?? 10);
+let liveDay = "", liveUsed = 0;
+function liveRemaining() {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== liveDay) { liveDay = today; liveUsed = 0; }
+  return Math.max(0, livePerDay() - liveUsed);
+}
+const liveAvailable = () => liveCode().length >= 6 && canRunLive();
+function codeMatches(given: string) {
+  const a = Buffer.from(given), b = Buffer.from(liveCode());
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// Start a live run: one open and one protected market, played by Claude. Counts as one of today's runs.
+app.post("/live", rateLimit(5), async (req, res) => {
+  if (!liveAvailable()) return res.status(503).json({ error: "Live runs aren't switched on for this site." });
+  const body = z.object({ code: z.string().max(100) }).safeParse(req.body);
+  if (!body.success || !codeMatches(body.data.code)) return res.status(403).json({ error: "That access code isn't right." });
+  if (liveRemaining() === 0) return res.status(429).json({ error: "Today's live runs are used up. The recorded run is still available." });
+  liveUsed += 1;
+  const [u, p] = await Promise.all([createRun("UNPROTECTED", { live: true }), createRun("PROTECTED", { live: true })]);
+  res.status(201).json({
+    maxRounds: MAX_ROUNDS,
+    UNPROTECTED: { runId: u.id, metrics: computeMetrics(u), ledger: ledger(u) },
+    PROTECTED: { runId: p.id, metrics: computeMetrics(p), ledger: ledger(p) },
+    remainingToday: liveRemaining(),
+  });
+});
+
 // Everything the Arena needs before a run: the actors, the projects, and where the proof lives.
 app.get("/arena", async (_req, res) => {
   const chainMode = process.env.CHAIN_MODE ?? "mock";
@@ -69,6 +105,7 @@ app.get("/arena", async (_req, res) => {
     ...arenaSeed(),
     deployments: { UNPROTECTED: deployment("UNPROTECTED"), PROTECTED: deployment("PROTECTED") },
     result: await recordedResult(),
+    live: { available: liveAvailable(), remainingToday: liveAvailable() ? liveRemaining() : 0 },
   });
 });
 
@@ -106,12 +143,16 @@ app.post("/runs/:id/rounds", async (req, res) => {
   if (!run) return res.status(404).json({ error: "Run not found" });
   if (run.round >= MAX_ROUNDS) return res.status(409).json({ error: "Run already finished" });
 
-  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+  // X-Accel-Buffering stops proxies holding events back; the comment line keeps the stream open while Claude thinks.
+  res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
+  const ping = setInterval(() => res.write(": still thinking\n\n"), 15_000);
   const emit = (e: ArenaEvent) => res.write(`data: ${JSON.stringify(e)}\n\n`);
   try {
     await playRound(run, emit);
   } catch (err) {
     res.write(`data: ${JSON.stringify({ type: "error", message: (err as Error).message })}\n\n`);
+  } finally {
+    clearInterval(ping);
   }
   res.end();
 });

@@ -1,5 +1,6 @@
 # Render blueprint for the API (free tier). The frontend deploys separately on Vercel.
 # The hosted demo replays the recorded run (data/traces): no model calls, no wallet, no secrets.
+# Optional live runs (Claude plays now) switch on only when ANTHROPIC_API_KEY and LIVE_RUN_CODE are both set.
 services:
   - type: web
     name: carbon-gauntlet-api
@@ -17,3 +18,11 @@ services:
         value: mock
       - key: CORS_ORIGIN
         sync: false   # your Vercel URL, e.g. https://carbon-gauntlet.vercel.app
+      - key: LLM_MODEL
+        value: claude-haiku-5-5
+      - key: LIVE_RUNS_PER_DAY
+        value: "10"
+      - key: ANTHROPIC_API_KEY
+        sync: false   # optional: leave empty to keep the site replay-only
+      - key: LIVE_RUN_CODE
+        sync: false   # optional: the access code judges type to start a live run (6+ characters)

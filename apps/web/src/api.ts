@@ -54,6 +54,8 @@ export interface ArenaInfo {
   deployments: Record<Mode, Deployment>;
   /** Final result of the recorded run (demo mode), for the home page. */
   result: Record<Mode, { metrics: Metrics; ledger: LedgerRow[] }> | null;
+  /** Live runs (Claude plays now) need an access code and are capped per day. */
+  live?: { available: boolean; remainingToday: number };
 }
 
 export type Action =
@@ -100,7 +102,12 @@ export type ArenaEvent =
   | { type: "error"; message: string };
 
 async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`The API answered ${res.status}. ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text.slice(0, 200);
+    try { message = (JSON.parse(text) as { error?: string }).error ?? message; } catch { /* not JSON */ }
+    throw new Error(message || `The API answered ${res.status}.`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -112,13 +119,12 @@ export const createRun = (mode: Mode) =>
   fetch(`${API}/runs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) })
     .then((r) => json<{ runId: string; maxRounds: number; metrics: Metrics; ledger: LedgerRow[] }>(r));
 
-/** Plays one round and returns every event it streamed (Server-Sent Events over a POST). */
-export async function playRound(runId: string): Promise<ArenaEvent[]> {
+/** Plays one round, calling onEvent for each event the moment it arrives (Server-Sent Events over a POST). */
+export async function playRoundStream(runId: string, onEvent: (e: ArenaEvent) => void): Promise<void> {
   const res = await fetch(`${API}/runs/${runId}/rounds`, { method: "POST" });
   if (!res.ok || !res.body) throw new Error(`The API answered ${res.status} when playing a round.`);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  const events: ArenaEvent[] = [];
   let buffer = "";
   for (;;) {
     const { value, done } = await reader.read();
@@ -126,10 +132,20 @@ export async function playRound(runId: string): Promise<ArenaEvent[]> {
     buffer += decoder.decode(value, { stream: true });
     const parts = buffer.split("\n\n");
     buffer = parts.pop() ?? "";
-    for (const part of parts) if (part.startsWith("data: ")) events.push(JSON.parse(part.slice(6)) as ArenaEvent);
+    for (const part of parts) if (part.startsWith("data: ")) onEvent(JSON.parse(part.slice(6)) as ArenaEvent);
   }
-  return events;
 }
+
+export interface LiveStart {
+  maxRounds: number;
+  UNPROTECTED: { runId: string; metrics: Metrics; ledger: LedgerRow[] };
+  PROTECTED: { runId: string; metrics: Metrics; ledger: LedgerRow[] };
+  remainingToday: number;
+}
+/** Starts a live run in both markets. Needs the access code. */
+export const startLive = (code: string) =>
+  fetch(`${API}/live`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) })
+    .then((r) => json<LiveStart>(r));
 
 export const txUrl = (hash?: string) => (hash?.startsWith("0x") && hash.length === 66 ? `${EXPLORER}/tx/${hash}` : undefined);
 export const addressUrl = (address: string) => `${EXPLORER}/address/${address}`;

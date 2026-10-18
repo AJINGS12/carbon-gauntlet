@@ -42,6 +42,14 @@ Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier), replayed on B
 | Integrity score | 26 | 100 |
 | Honest claims blocked | 0 | 0 |
 
+## Three ways in
+
+| Page | What it does | Cost |
+| --- | --- | --- |
+| `/arena` | Replays the recorded live run: Claude's agents and verifier, every move linked to its Base Sepolia transaction | Free, no model calls |
+| `/arena`, live | Judges with the access code run it live: Claude decides every move now (Haiku, capped per day) | Model credit |
+| `/try` | Try to cheat it yourself: pick one of six tricks and send it through both markets | Free, rule checks only |
+
 ## Repo layout
 
 ```
@@ -97,7 +105,7 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 
 ```bash
 npm run contracts:test                            # contract rules, both modes
-npm test -w apps/api                              # verifier, agents, simulation, chain isolation (46 tests)
+npm test -w apps/api                              # verifier, agents, simulation, chain isolation (55 tests)
 npm run eval:verifier -w apps/api                 # 12 seed projects scored: frauds caught, honest passed
 npm run sim -w apps/api                           # full simulation, both modes, pass/fail scorecard
 npm run chain:check -w apps/api                   # deployed contract gives identical verdicts to the mock

@@ -47,6 +47,7 @@ export interface Run {
   recording?: RunRecording;                    // live decisions being recorded
   replay?: RunRecording | null;                // recorded decisions being replayed
   sandbox?: boolean;                           // "try to cheat it": in-memory ledger, rule checks only, never stored
+  live?: boolean;                              // a judge's live run: Claude decides every move, even in demo mode
 }
 
 const runs = new Map<string, Run>();
@@ -54,6 +55,8 @@ export const getRun = (id: string) => runs.get(id);
 
 let llm: LlmClient | null | undefined;
 const getLlm = () => (llm === undefined ? (llm = createLlmClient()) : llm);
+/** True when the server can run live: a model key is configured (tests inject a fake model instead). */
+export const canRunLive = () => !!getLlm();
 /** Tests inject a fake model here; null forces scripted agents and rule-based verification. */
 export function setLlmForTesting(client: LlmClient | null) { llm = client; }
 
@@ -64,7 +67,7 @@ const savingTxs = () => process.env.SAVE_CHAIN_TXS === "true" && chainMode() !==
 const recording = () => process.env.RECORD_TRACES === "true";
 
 /** Creates a run and seeds a small honest market: green-coop's projects verified and minted. */
-export async function createRun(mode: Mode, opts: { sandbox?: boolean } = {}): Promise<Run> {
+export async function createRun(mode: Mode, opts: { sandbox?: boolean; live?: boolean } = {}): Promise<Run> {
   const id = randomUUID();
   // Isolated market per run. A sandbox always uses the in-memory ledger: visitors never send transactions.
   const chain = new RunScopedChain(id.slice(0, 6), opts.sandbox ? new MockLedger(mode === "PROTECTED") : await createChain(mode));
@@ -72,6 +75,7 @@ export async function createRun(mode: Mode, opts: { sandbox?: boolean } = {}): P
     id, mode, round: 0, chain, agents: [], projects: new Map(seedById), variants: new Set(), registered: new Map(),
     attested: [], history: new Map(), approved: new Map(), batches: new Map(), log: [], schemeStart: new Map(), detectionRounds: [], totalMinted: 0,
     sandbox: opts.sandbox,
+    live: opts.live,
   };
   const minted: Record<string, number> = {};
   for (const id of PRESEEDED) {
@@ -94,7 +98,7 @@ export async function createRun(mode: Mode, opts: { sandbox?: boolean } = {}): P
 
   run.agents = createAgents({ brokerBatch: minted["solar-ke-002"], coalTargetBatch: minted["methane-br-001"] });
   if (opts.sandbox) return run;
-  if (demoMode()) run.replay = loadRecording(mode);
+  if (demoMode() && !run.live) run.replay = loadRecording(mode);
   else if (recording() && getLlm()) run.recording = { mode, model: `agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL}`, recordedAt: new Date().toISOString(), decisions: {} };
   runs.set(run.id, run);
   return run;
@@ -189,7 +193,7 @@ async function chooseDecision(run: Run, agent: AgentState, emit: (e: ArenaEvent)
     if (valid) return { decision: { ...recorded, source: "replay" } };
     return script();
   }
-  if (demoMode()) return script();
+  if (demoMode() && !run.live) return script();
 
   const client = getLlm();
   if (!client) return script();
@@ -301,7 +305,7 @@ async function register(run: Run, agent: AgentState, p: Project, emit: (e: Arena
   }
 
   const att = await verifyProject(p, { registry: run.attested, history: (dev) => run.history.get(dev) ?? [] }, emit, {
-    llm: run.sandbox ? null : getLlm(), demoMode: run.sandbox ? false : demoMode(), record: run.sandbox ? false : recording(),
+    llm: run.sandbox ? null : getLlm(), demoMode: run.sandbox || run.live ? false : demoMode(), record: run.sandbox || run.live ? false : recording(),
   });
   emit({ type: "attestation", attestation: att });
   run.attested.push(p);

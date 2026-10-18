@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  createRun, fetchArena, playRound, API, MODES,
+  createRun, fetchArena, playRoundStream, startLive, API, MODES,
   type ArenaEvent, type ArenaInfo, type Attestation, type Decision, type LedgerRow, type Metrics, type Mode, type PublicProject,
 } from "./api";
 
@@ -113,6 +113,7 @@ export function useArena() {
   const [error, setError] = useState<string | null>(null);
   const [speed, setSpeed] = useState(1);
   const [turn, setTurn] = useState<Turn | null>(null);
+  const [live, setLive] = useState(false);
   const speedRef = useRef(1);
   const pauseRef = useRef(false);
   const busyRef = useRef(false);
@@ -137,6 +138,7 @@ export function useArena() {
       setInfo(arena);
       const [u, p] = await Promise.all(MODES.map((mode) => createRun(mode)));
       setTurn(null);
+      setLive(false);
       setMarkets({
         UNPROTECTED: { ...emptyMarket(), runId: u.runId, metrics: u.metrics, ledger: u.ledger },
         PROTECTED: { ...emptyMarket(), runId: p.runId, metrics: p.metrics, ledger: p.ledger },
@@ -154,25 +156,50 @@ export function useArena() {
     void reset();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Plays the next round in both markets and reveals it turn by turn. Returns false when the run is over. */
+  /**
+   * Plays the next round in both markets and reveals it turn by turn, side by side.
+   * Events stream in as they happen: a replay arrives at once, a live run arrives as Claude decides.
+   * Returns false when the run is over.
+   */
   const playNext = useCallback(async (): Promise<boolean> => {
     const current = marketsRef.current;
     const max = info?.maxRounds ?? 6;
     if (!current.UNPROTECTED.runId || !current.PROTECTED.runId || current.PROTECTED.round >= max) return false;
-    const [ue, pe] = await Promise.all([playRound(current.UNPROTECTED.runId), playRound(current.PROTECTED.runId)]);
-    const failed = [...ue, ...pe].find((e) => e.type === "error");
-    if (failed && failed.type === "error") throw new Error(failed.message);
-    const u = turns(ue), p = turns(pe);
-    // Only this loop changes the markets while a round plays, so it keeps its own copy and publishes it.
-    let mu = u.prelude.reduce(apply, current.UNPROTECTED), mp = p.prelude.reduce(apply, current.PROTECTED);
-    setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
+
+    const buf: Record<Mode, ArenaEvent[]> = { UNPROTECTED: [], PROTECTED: [] };
+    const done: Record<Mode, boolean> = { UNPROTECTED: false, PROTECTED: false };
+    let failure: Error | null = null;
+    let wake = () => {};
+    for (const mode of MODES)
+      playRoundStream(current[mode].runId!, (e) => { buf[mode].push(e); wake(); })
+        .catch((err) => { failure = err instanceof Error ? err : new Error(String(err)); })
+        .finally(() => { done[mode] = true; wake(); });
+    const failed = () => failure ?? (() => { const e = [...buf.UNPROTECTED, ...buf.PROTECTED].find((x) => x.type === "error"); return e?.type === "error" ? new Error(e.message) : null; })();
+    const waitFor = (ready: () => boolean) => new Promise<void>((resolve) => {
+      const check = () => { if (ready() || failed()) resolve(); else wake = check; };
+      check();
+    });
+    // A turn is complete once the next one has started, the round has ended, or the stream has closed.
+    const complete = (mode: Mode, i: number) => { const t = turns(buf[mode]); return done[mode] || t.turns.length > i + 1 || t.end.length > 0; };
+
+    let mu = current.UNPROTECTED, mp = current.PROTECTED;
     const pace = (ms: number) => sleep(ms / speedRef.current);
-    for (let i = 0; i < Math.max(u.turns.length, p.turns.length); i++) {
+    for (let i = 0; ; i++) {
+      // Agents move in a fixed order, so we know who is thinking before their decision arrives.
+      const next = info?.roles[i]?.id;
+      if (next) setTurn({ round: mp.round + (i === 0 ? 1 : 0), agentId: next, phase: "thinking", rows: {} });
+      const started = Date.now();
+      await waitFor(() => complete("UNPROTECTED", i) && complete("PROTECTED", i));
+      const err = failed();
+      if (err) throw err;
+      const u = turns(buf.UNPROTECTED), p = turns(buf.PROTECTED);
+      if (i === 0) { mu = u.prelude.reduce(apply, mu); mp = p.prelude.reduce(apply, mp); }
+      if (!u.turns[i] && !p.turns[i]) break;
       const agentId = agentOf(p.turns[i]) ?? agentOf(u.turns[i]) ?? "";
       const roundNo = mp.round;
       const waiting = [u.turns[i], p.turns[i]].every((t) => !t || t.some((e) => e.type === "agent_decision" && e.decision.step.action === "WAIT"));
       setTurn({ round: roundNo, agentId, phase: "thinking", rows: {} });
-      await pace(waiting ? 350 : 800);
+      await pace(Math.max(0, (waiting ? 350 : 800) - (Date.now() - started) * speedRef.current));
       mu = (u.turns[i] ?? []).reduce(apply, mu);
       mp = (p.turns[i] ?? []).reduce(apply, mp);
       setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
@@ -183,6 +210,10 @@ export function useArena() {
       // Hold long enough to read it: longer when the verifier's checks are being ticked off.
       await pace(waiting ? 900 : 2700 + (investigation?.steps.length ?? 0) * 220);
     }
+    await waitFor(() => done.UNPROTECTED && done.PROTECTED);
+    const err = failed();
+    if (err) throw err;
+    const u = turns(buf.UNPROTECTED), p = turns(buf.PROTECTED);
     mu = u.end.reduce(apply, mu);
     mp = p.end.reduce(apply, mp);
     setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
@@ -213,8 +244,23 @@ export function useArena() {
     }
   }, [playNext]);
 
+  /** Swaps the replay for a live run: Claude decides every move. Needs the judges' access code. */
+  const goLive = useCallback(async (code: string) => {
+    if (busyRef.current) return;
+    setError(null);
+    const started = await startLive(code); // throws with the server's message (wrong code, used up, ...)
+    setTurn(null);
+    setLive(true);
+    setInfo((i) => (i ? { ...i, live: { available: true, remainingToday: started.remainingToday } } : i));
+    setMarkets({
+      UNPROTECTED: { ...emptyMarket(), runId: started.UNPROTECTED.runId, metrics: started.UNPROTECTED.metrics, ledger: started.UNPROTECTED.ledger },
+      PROTECTED: { ...emptyMarket(), runId: started.PROTECTED.runId, metrics: started.PROTECTED.metrics, ledger: started.PROTECTED.ledger },
+    });
+    setStatus("ready");
+  }, []);
+
   return {
-    info, markets, status, error, speed, setSpeed, turn,
+    info, markets, status, error, speed, setSpeed, turn, live, goLive,
     play: () => run(false),
     step: () => run(true),
     pause: () => { pauseRef.current = true; },

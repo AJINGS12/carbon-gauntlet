@@ -11,7 +11,26 @@ const SPEEDS = [1, 2, 4];
 const CAST = ["honest-dev", "opportunist-dev", "broker", "coal-nation"].map((id) => ({ id, name: id, honest: id === "honest-dev", country: "", goal: "", portfolio: [] }));
 
 export default function Arena() {
-  const { info, markets, status, error, speed, setSpeed, turn, play, step, pause, reset } = useArena();
+  const { info, markets, status, error, speed, setSpeed, turn, live, goLive, play, step, pause, reset } = useArena();
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const liveInfo = info?.live;
+  const startLive = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStarting(true);
+    setLiveError(null);
+    try {
+      await goLive(code.trim());
+      setLiveOpen(false);
+      setCode("");
+    } catch (err) {
+      setLiveError(err instanceof Error ? err.message : "Couldn't start a live run.");
+    } finally {
+      setStarting(false);
+    }
+  };
   const [focus, setFocus] = useState<string | null>(null);
   const [view, setView] = useState<Mode>("PROTECTED");
   const [explore, setExplore] = useState(false);
@@ -33,7 +52,7 @@ export default function Arena() {
   return (
     <div className="page arena">
       <section className="controls" aria-label="Playback">
-        <h1>The Arena</h1>
+        <h1>The Arena{live && <span className="live-badge">Live</span>}</h1>
         <ol className="rounds" aria-label={`Round ${round} of ${max}`}>
           {Array.from({ length: max }, (_, i) => (
             <li key={i} className={i < round ? "done" : i === round && playing ? "now" : ""} />
@@ -49,7 +68,7 @@ export default function Arena() {
               {round === 0 ? "Run the gauntlet" : "Continue"}
             </button>
           )}
-          <button type="button" onClick={() => { toStage(); void step(); }} disabled={playing || busy || status === "finished"}>Next<span className="hide-phone">&nbsp;round</span></button>
+          <button type="button" onClick={() => { toStage(); void step(); }} disabled={playing || busy || status === "finished"}><span className="hide-phone">Next round</span><span className="phone-only">Next</span></button>
           <button type="button" onClick={() => void reset()} disabled={status === "loading"}>Restart</button>
           <div className="speed" role="radiogroup" aria-label="Playback speed">
             {SPEEDS.map((s) => (
@@ -59,8 +78,28 @@ export default function Arena() {
         </div>
         {status === "error" && <p className="status error" role="alert">{error}</p>}
         {status === "loading" && <p className="status" role="status">Setting up both markets…</p>}
-        {rec && status === "ready" && (
-          <p className="status">A recorded live run: every agent move and verifier check was made by Claude. Replaying it makes no AI calls.</p>
+        {live && (status === "ready" || status === "playing" || status === "paused") && (
+          <p className="status">Live run: Claude is deciding every move right now, so each turn takes a few seconds longer.</p>
+        )}
+        {!live && rec && status === "ready" && (
+          <p className="status">
+            A recorded live run: every agent move and verifier check was made by Claude. Replaying it makes no AI calls.
+            {liveInfo?.available && !liveOpen && (
+              <> <button type="button" className="link" onClick={() => setLiveOpen(true)}>Run it live instead</button></>
+            )}
+          </p>
+        )}
+        {liveOpen && !live && (
+          <form className="live-form" onSubmit={(e) => void startLive(e)}>
+            <label htmlFor="live-code">Access code for live runs</label>
+            <div>
+              <input id="live-code" type="password" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} required />
+              <button type="submit" className="primary" disabled={starting || !code.trim()}>{starting ? "Starting…" : "Start live run"}</button>
+              <button type="button" onClick={() => { setLiveOpen(false); setLiveError(null); }}>Cancel</button>
+            </div>
+            <p className="fine">Claude plays every move now: about 3 to 6 minutes for six rounds. {liveInfo?.remainingToday ?? 0} live {liveInfo?.remainingToday === 1 ? "run" : "runs"} left today.</p>
+            {liveError && <p className="status error" role="alert">{liveError}</p>}
+          </form>
         )}
       </section>
 
