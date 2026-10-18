@@ -33,10 +33,7 @@ export default function Home({ go }: { go: (path: string) => void }) {
         <div className="hero-copy">
           <h1>Only honest credits make it through.</h1>
           <p className="lede">AI agents try to cheat a carbon market. An AI verifier and an on-chain registry stop them. Watch it happen.</p>
-          <div className="cta">
-            <a className="button primary big" href="/arena" onClick={open}>Run the gauntlet</a>
-            <a className="button big" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>Try to cheat it</a>
-          </div>
+          <a className="button primary big beckon" href="/arena" onClick={open}>Open the Arena</a>
         </div>
 
         <figure className="hero-result" aria-label="Result of the recorded run">
@@ -89,10 +86,7 @@ export default function Home({ go }: { go: (path: string) => void }) {
 
       <section className="closing">
         <h2>Six rounds. Four agents. See what gets through.</h2>
-        <div className="cta">
-          <a className="button primary big" href="/arena" onClick={open}>Run the gauntlet</a>
-          <a className="button big" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>Try to cheat it</a>
-        </div>
+        <a className="button primary big beckon" href="/arena" onClick={open}>Open the Arena</a>
       </section>
     </div>
   );

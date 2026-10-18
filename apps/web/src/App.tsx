@@ -39,12 +39,14 @@ export default function App() {
           <Logo size={44} />
         </a>
         <div className="nav-links">
-          {!trying && <a href="/try" onClick={link("/try")}>Try to cheat it</a>}
-          {!arena && <a className={trying ? "button primary" : "button primary"} href="/arena" onClick={link("/arena")}>Open the Arena</a>}
-          {arena && <a className="button" href="/" onClick={link("/")}>About</a>}
+          {arena || trying ? (
+            <a className="button" href="/" onClick={link("/")}>About</a>
+          ) : (
+            <a className="button primary" href="/arena" onClick={link("/arena")}>Open the Arena</a>
+          )}
         </div>
       </nav>
-      <main id="main">{arena ? <Arena /> : trying ? <Try go={go} /> : <Home go={go} />}</main>
+      <main id="main">{arena ? <Arena go={go} /> : trying ? <Try go={go} /> : <Home go={go} />}</main>
       <footer className="site-foot">
         <p>Prototype for the IEEE ClimateChain Global Hackathon 2026. Synthetic projects on a testnet: not a real carbon registry.</p>
       </footer>

@@ -5,12 +5,13 @@ import { AgentStrip, History, MARKET, Scoreboard } from "./Market";
 import { Stage } from "./Stage";
 import { SiteMap } from "./SiteMap";
 import { LedgerTable, Results } from "./Results";
+import { ArenaTabs } from "./ArenaTabs";
 
 const SPEEDS = [1, 2, 4];
 /** Shown on the stage while the API is still loading the real roles. */
 const CAST = ["honest-dev", "opportunist-dev", "broker", "coal-nation"].map((id) => ({ id, name: id, honest: id === "honest-dev", country: "", goal: "", portfolio: [] }));
 
-export default function Arena() {
+export default function Arena({ go }: { go: (path: string) => void }) {
   const { info, markets, status, error, speed, setSpeed, turn, live, goLive, play, step, pause, reset } = useArena();
   const [liveOpen, setLiveOpen] = useState(false);
   const [code, setCode] = useState("");
@@ -51,8 +52,9 @@ export default function Arena() {
 
   return (
     <div className="page arena">
+      <h1 className="sr-only">The Arena</h1>
+      <ArenaTabs active="watch" go={go} badge={live ? <span className="live-badge">Live</span> : undefined} />
       <section className="controls" aria-label="Playback">
-        <h1>The Arena{live && <span className="live-badge">Live</span>}</h1>
         <ol className="rounds" aria-label={`Round ${round} of ${max}`}>
           {Array.from({ length: max }, (_, i) => (
             <li key={i} className={i < round ? "done" : i === round && playing ? "now" : ""} />

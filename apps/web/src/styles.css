@@ -132,6 +132,22 @@ button.link:hover:not(:disabled) { background: none; color: var(--ink); }
 .closing { margin-top: 64px; padding: 40px 0 8px; border-top: 2px solid var(--ink); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; }
 .home .closing h2 { font-size: clamp(30px, 4vw, 48px); margin: 0; max-width: 24ch; }
 
+/* The one call to action on the home page: a slow pulse invites the tap */
+a.button.beckon { position: relative; font-size: 20px; padding: 17px 34px; border-radius: 8px; background: var(--green); border-color: var(--green); color: #fff; }
+a.button.beckon:hover { background: var(--ink); border-color: var(--ink); color: #fff; }
+.beckon::after { content: ""; position: absolute; inset: -2px; border-radius: 9px; box-shadow: 0 0 0 0 rgba(7, 129, 63, .55); animation: beckon 2.2s ease-out infinite; pointer-events: none; }
+.beckon:hover { transform: translateY(-1px); }
+@keyframes beckon { 0% { box-shadow: 0 0 0 0 rgba(7, 129, 63, .5); } 70% { box-shadow: 0 0 0 16px rgba(7, 129, 63, 0); } 100% { box-shadow: 0 0 0 0 rgba(7, 129, 63, 0); } }
+
+/* Arena tabs: watch the agents, or try it yourself */
+.arena-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.arena-tab { display: flex; flex-direction: column; gap: 1px; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); text-decoration: none; }
+.arena-tab strong { font: 900 24px/1.05 var(--display); font-stretch: 65%; text-transform: uppercase; }
+.arena-tab span { font-size: 13px; color: var(--ink-2); }
+.arena-tab:hover { border-color: var(--ink-2); background: #fff; color: var(--ink); }
+.arena-tab.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.arena-tab.on span { color: rgba(255, 255, 255, .75); }
+
 /* ---------------------------------------------------------------- arena: controls */
 .page { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
 .controls {
@@ -424,9 +440,8 @@ button.link:hover:not(:disabled) { background: none; color: var(--ink); }
 
 
 /* ---------------------------------------------------------------- try to cheat it */
-.try-head { max-width: 760px; margin: 8px 0 22px; }
-.try-head h1 { font-size: clamp(44px, 7vw, 76px); font-weight: 900; font-stretch: 62%; text-transform: uppercase; line-height: .9; }
-.try-head .lede { margin: 12px 0 6px; }
+.try-head { max-width: 760px; margin: 0 0 18px; }
+.try-head .lede { margin: 0 0 4px; }
 .try-grid { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .trick-list { display: flex; flex-direction: column; gap: 8px; }
 .trick { justify-content: flex-start; gap: 12px; text-align: left; padding: 12px 14px; border-radius: 10px; border-color: var(--rule); font-weight: 400; }
@@ -464,7 +479,12 @@ button.link:hover:not(:disabled) { background: none; color: var(--ink); }
 @media (max-width: 760px) {
   .page.arena { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .arena .controls { border-bottom: 0; padding: 4px 0 6px; margin-bottom: 8px; gap: 8px 12px; }
-  .arena .controls h1 { font-size: 26px; }
+  .arena-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .arena-tab { padding: 8px 10px; }
+  .arena-tab strong { font-size: 18px; }
+  .arena-tab span { font-size: 11px; }
+  .arena-tabs .live-badge { grid-column: 1 / -1; justify-self: start; margin: 0; }
+  a.button.beckon { width: 100%; }
   .arena .rounds li { width: 22px; height: 6px; }
   .arena .status { font-size: 13px; }
 

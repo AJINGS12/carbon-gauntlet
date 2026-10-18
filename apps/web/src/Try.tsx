@@ -4,6 +4,7 @@ import { apply, emptyMarket, type Turn } from "./useArena";
 import { Pane } from "./Stage";
 import { Toy } from "./Avatar";
 import { nameOf } from "./text";
+import { ArenaTabs } from "./ArenaTabs";
 
 interface Trick { id: TrickId; title: string; line: string; as: string }
 
@@ -65,8 +66,9 @@ export default function Try({ go }: { go: (path: string) => void }) {
 
   return (
     <div className="page try">
+      <h1 className="sr-only">Try to cheat it</h1>
+      <ArenaTabs active="try" go={go} />
       <header className="try-head">
-        <h1>Try to cheat it</h1>
         <p className="lede">Pick a trick. It runs in both markets at once: the open market takes it on trust, Carbon Gauntlet checks it.</p>
         <p className="fine">Free to play: this uses the rule checks and contract rules, with no AI calls.</p>
       </header>
