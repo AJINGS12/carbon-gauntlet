@@ -68,6 +68,7 @@ export default function Home({ go }: { go: (path: string) => void }) {
             </li>
           ))}
         </ol>
+        <p className="how-more"><a href="/how" onClick={(e) => { e.preventDefault(); go("/how"); }}>Who it's for, and what it would take to run for real →</a></p>
       </section>
 
       <section className="catches" aria-labelledby="h-catches">

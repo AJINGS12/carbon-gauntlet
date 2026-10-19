@@ -602,3 +602,56 @@ a.button.beckon:hover { background: var(--ink); border-color: var(--ink); color:
   *, *::before, *::after { animation-duration: 0.001s !important; animation-delay: 0s !important; transition: none !important; }
   html { scroll-behavior: auto; }
 }
+
+/* ---------------------------------------------------------------- How it works page */
+.nav-links a[aria-current="page"] { color: var(--green); }
+.how-more { margin: 22px 0 0; font-weight: 600; font-size: 17px; }
+.how-hero { padding: 40px 0 8px; max-width: 900px; }
+.eyebrow { margin: 0 0 12px; font: 700 14px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--green); }
+.how-hero h1 { font-size: clamp(44px, 6.6vw, 92px); font-weight: 900; font-stretch: 62%; text-transform: uppercase; line-height: 0.9; }
+.how-hero .lede { font-size: 21px; line-height: 1.45; margin: 22px 0 0; max-width: 46ch; }
+.how-block { padding: 64px 0 0; }
+.how-text { font-size: 17px; line-height: 1.55; max-width: 62ch; margin: 0 0 14px; }
+.ref { font-size: 11px; line-height: 0; margin-left: 2px; }
+.ref a { text-decoration: none; font-weight: 700; }
+.problem-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 40px; align-items: start; }
+.stat-card { background: var(--stage); color: var(--stage-ink); border-radius: 10px; padding: 26px 28px; }
+.stat-card strong { display: block; font: 900 clamp(72px, 9vw, 120px)/0.9 var(--display); font-stretch: 62%; color: var(--stage-red); }
+.stat-card p { margin: 14px 0 0; font-size: 17px; line-height: 1.5; }
+.stat-card a { color: var(--stage-green); }
+.fraud-list { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; }
+.fraud-list li { font-size: 16px; line-height: 1.45; padding-left: 18px; position: relative; }
+.fraud-list li::before { content: ""; position: absolute; left: 0; top: .55em; width: 8px; height: 8px; border-radius: 2px; background: var(--red); }
+.steps.journey { grid-template-columns: repeat(4, 1fr); }
+.steps.journey p { max-width: none; }
+.tested { margin-top: 28px; padding: 16px 18px; background: var(--green-wash); border-radius: 8px; max-width: none; }
+.user-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.user-cards li { background: var(--sheet); border: 1px solid var(--rule); border-top: 4px solid var(--green); border-radius: 8px; padding: 20px 20px 18px; }
+.user-cards h3 { font-size: 24px; font-weight: 800; font-stretch: 75%; margin-bottom: 8px; }
+.user-cards p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ink-2); }
+.why-list { margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 40px; }
+.why-list div { border-top: 1px solid var(--rule); padding: 18px 0 20px; }
+.why-list dt { font: 800 22px/1.1 var(--display); font-stretch: 75%; margin-bottom: 8px; }
+.why-list dd { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink-2); }
+.tiles.limits { grid-template-columns: repeat(4, 1fr); }
+.tiles.limits li { align-items: flex-start; font-weight: 400; font-size: 15px; line-height: 1.45; }
+.tiles.limits li::before { margin-top: 2px; }
+.tiles.limits strong { display: block; font-size: 17px; margin-bottom: 4px; }
+.sources ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 15px; }
+.sources ol li:target { background: var(--green-wash); }
+.home .sources h2 { font-size: clamp(26px, 3vw, 34px); }
+.closing-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (max-width: 1020px) {
+  .steps.journey, .tiles.limits { grid-template-columns: repeat(2, 1fr); }
+  .user-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .problem-grid, .why-list { grid-template-columns: 1fr; gap: 20px; }
+  .why-list { gap: 0; }
+  .how-block { padding-top: 44px; }
+  .how-hero .lede { font-size: 18px; }
+}
+@media (max-width: 560px) {
+  .steps.journey, .tiles.limits { grid-template-columns: 1fr; }
+  .nav-links { gap: 12px; font-size: 14px; }
+}

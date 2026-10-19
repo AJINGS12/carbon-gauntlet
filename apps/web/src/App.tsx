@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import Home from "./Home";
 import Arena from "./Arena";
 import Try from "./Try";
+import How from "./How";
 import { Logo } from "./Avatar";
 
-/** Two pages, no router library: "/" is the home page, "/arena" runs the gauntlet. */
+/** A few pages, no router library: "/" home, "/arena" runs the gauntlet, "/try" lets you cheat, "/how" explains it. */
 function usePath(): [string, (to: string) => void] {
   const [path, setPath] = useState(window.location.pathname);
   useEffect(() => {
@@ -25,11 +26,12 @@ export default function App() {
   const [path, go] = usePath();
   const arena = path.startsWith("/arena");
   const trying = path.startsWith("/try");
+  const how = path.startsWith("/how");
   const link = (to: string) => (e: React.MouseEvent) => { e.preventDefault(); go(to); };
 
   useEffect(() => {
-    document.title = arena ? "The Arena · Carbon Gauntlet" : trying ? "Try to cheat it · Carbon Gauntlet" : "Carbon Gauntlet";
-  }, [arena, trying]);
+    document.title = arena ? "The Arena · Carbon Gauntlet" : trying ? "Try to cheat it · Carbon Gauntlet" : how ? "How it works · Carbon Gauntlet" : "Carbon Gauntlet";
+  }, [arena, trying, how]);
 
   return (
     <>
@@ -39,6 +41,7 @@ export default function App() {
           <Logo size={44} />
         </a>
         <div className="nav-links">
+          <a href="/how" onClick={link("/how")} aria-current={how ? "page" : undefined}>How it works</a>
           {arena || trying ? (
             <a className="button" href="/" onClick={link("/")}>About</a>
           ) : (
@@ -46,7 +49,7 @@ export default function App() {
           )}
         </div>
       </nav>
-      <main id="main">{arena ? <Arena go={go} /> : trying ? <Try go={go} /> : <Home go={go} />}</main>
+      <main id="main">{arena ? <Arena go={go} /> : trying ? <Try go={go} /> : how ? <How go={go} /> : <Home go={go} />}</main>
       <footer className="site-foot">
         <p>Prototype for the IEEE ClimateChain Global Hackathon 2026. Synthetic projects on a testnet: not a real carbon registry.</p>
       </footer>
