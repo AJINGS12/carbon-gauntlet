@@ -202,6 +202,7 @@ async function chooseDecision(run: Run, agent: AgentState, emit: (e: ArenaEvent)
     if (run.recording) run.recording.decisions[decisionKey(run.round, agent.id)] = decision;
     return { decision };
   } catch (err) {
+    console.warn(`[live] agent ${agent.id} model call failed: ${(err as Error).message}`);
     emit({ type: "agent_fallback", agentId: agent.id, reason: `Model unavailable (${(err as Error).message.slice(0, 120)}); using scripted policy` });
     return script();
   }

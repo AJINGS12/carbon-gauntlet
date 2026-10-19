@@ -33,7 +33,7 @@ export function LedgerTable({ ledger }: { ledger: LedgerRow[] }) {
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-export function Results({ info, markets }: { info: ArenaInfo; markets: Record<Mode, Market> }) {
+export function Results({ info, markets, live = false }: { info: ArenaInfo; markets: Record<Mode, Market>; live?: boolean }) {
   const u = markets.UNPROTECTED.metrics, p = markets.PROTECTED.metrics;
   if (!u || !p) return null;
   const issued = markets.UNPROTECTED.ledger.reduce((t, b) => t + b.quantity, 0);
@@ -46,6 +46,7 @@ export function Results({ info, markets }: { info: ArenaInfo; markets: Record<Mo
     ["Honest claims blocked", (m) => String(m.honestClaimsBlocked)],
   ];
   const rec = info.deployments.PROTECTED.recording;
+  const fellBack = [...markets.UNPROTECTED.rows, ...markets.PROTECTED.rows].filter((r) => r.fallback).length;
 
   return (
     <section className="results" aria-labelledby="h-results">
@@ -74,7 +75,7 @@ export function Results({ info, markets }: { info: ArenaInfo; markets: Record<Mo
           })}
         </ul>
         <p><a href="/try">Now try to cheat it yourself</a></p>
-        {rec && <p className="fine">Recorded live on {date(rec.recordedAt)} with {modelText(rec.model)}.</p>}
+        {live ? <p className="fine">{fellBack ? `Played live just now. The model was unavailable for ${fellBack} move${fellBack === 1 ? "" : "s"}, so scripted moves stood in.` : "Played live just now: Claude made every move."}</p> : rec && <p className="fine">Recorded live on {date(rec.recordedAt)} with {modelText(rec.model)}.</p>}
       </div>
     </section>
   );

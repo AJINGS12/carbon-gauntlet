@@ -64,8 +64,9 @@ export function SiteMap({ info, market }: { info: ArenaInfo; market: Market }) {
       </div>
       <MapContainer className="map" center={[20, 10]} zoom={3} scrollWheelZoom={false} aria-label={`Project sites in ${countryOf(country)}`}>
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
         <FitTo bounds={here.flatMap((s) => ring(s.project))} />
         {here.map((s) => {

@@ -116,7 +116,7 @@ export default function Arena({ go }: { go: (path: string) => void }) {
         <Scoreboard mode="PROTECTED" market={markets.PROTECTED} />
       </div>
 
-      {info && status === "finished" && <Results info={info} markets={markets} />}
+      {info && status === "finished" && <Results info={info} markets={markets} live={live} />}
 
       {info && round > 0 && (
         <section className="moves" aria-labelledby="h-moves">
