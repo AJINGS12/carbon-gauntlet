@@ -7,6 +7,8 @@ import { timingSafeEqual } from "node:crypto";
 import { createRun, getRun, playRound, computeMetrics, ledger, arenaSeed, tryTrick, canRunLive, TRICK_IDS, MAX_ROUNDS } from "./engine/run.js";
 import { ROLES } from "./agents/roles.js";
 import { loadRecording } from "./agents/recordings.js";
+import { AGENT_MODEL, VERIFIER_MODEL } from "./llm/client.js";
+import { startRecord, recordEvent, getRecord, getRecordText, listRecords, recordsPersistent } from "./records/recorder.js";
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN ?? "*" }));
@@ -76,10 +78,17 @@ app.post("/live", rateLimit(5), async (req, res) => {
   if (liveRemaining() === 0) return res.status(429).json({ error: "Today's live runs are used up. The recorded run is still available." });
   liveUsed += 1;
   const [u, p] = await Promise.all([createRun("UNPROTECTED", { live: true }), createRun("PROTECTED", { live: true })]);
+  const start = {
+    UNPROTECTED: { metrics: computeMetrics(u), ledger: ledger(u) },
+    PROTECTED: { metrics: computeMetrics(p), ledger: ledger(p) },
+  };
+  // Every live run is recorded from its first move, so it can be saved and anchored when it ends.
+  const recordId = startRecord({ UNPROTECTED: u.id, PROTECTED: p.id }, start, `agents ${AGENT_MODEL}, verifier ${VERIFIER_MODEL}`, MAX_ROUNDS);
   res.status(201).json({
     maxRounds: MAX_ROUNDS,
-    UNPROTECTED: { runId: u.id, metrics: computeMetrics(u), ledger: ledger(u) },
-    PROTECTED: { runId: p.id, metrics: computeMetrics(p), ledger: ledger(p) },
+    recordId,
+    UNPROTECTED: { runId: u.id, ...start.UNPROTECTED },
+    PROTECTED: { runId: p.id, ...start.PROTECTED },
     remainingToday: liveRemaining(),
   });
 });
@@ -106,7 +115,39 @@ app.get("/arena", async (_req, res) => {
     deployments: { UNPROTECTED: deployment("UNPROTECTED"), PROTECTED: deployment("PROTECTED") },
     result: await recordedResult(),
     live: { available: liveAvailable(), remainingToday: liveAvailable() ? liveRemaining() : 0 },
+    records: { persistent: recordsPersistent(), anchored: process.env.ANCHOR_RUNS === "true" },
   });
+});
+
+// Saved live runs: a list, one record (or, while it is still playing, everything so far), and the exact stored text.
+app.get("/records", async (_req, res) => {
+  try {
+    res.json({ records: await listRecords(20) });
+  } catch (err) {
+    console.warn(`[records] list failed: ${(err as Error).message}`);
+    res.status(502).json({ error: "Couldn't load past runs right now." });
+  }
+});
+app.get("/records/:id", async (req, res) => {
+  try {
+    const view = await getRecord(req.params.id);
+    if (!view) return res.status(404).json({ error: "No saved run with that link." });
+    if (view.status === "playing") return res.json({ ...view, busy: Object.values(view.runIds).some((id) => getRun(id)?.busy) });
+    res.json(view);
+  } catch (err) {
+    console.warn(`[records] get failed: ${(err as Error).message}`);
+    res.status(502).json({ error: "Couldn't load that run right now." });
+  }
+});
+app.get("/records/:id/body", async (req, res) => {
+  try {
+    const text = await getRecordText(req.params.id);
+    if (!text) return res.status(404).json({ error: "No saved run with that link." });
+    res.type("application/json").send(text);
+  } catch (err) {
+    console.warn(`[records] body failed: ${(err as Error).message}`);
+    res.status(502).json({ error: "Couldn't load that run right now." });
+  }
 });
 
 // "Try to cheat it yourself": one trick, run in a fresh open and protected market. Rule checks only, so it's free.
@@ -142,17 +183,23 @@ app.post("/runs/:id/rounds", async (req, res) => {
   const run = getRun(req.params.id);
   if (!run) return res.status(404).json({ error: "Run not found" });
   if (run.round >= MAX_ROUNDS) return res.status(409).json({ error: "Run already finished" });
+  if (run.busy) return res.status(409).json({ error: "This round is still being played. Try again in a moment." });
+  run.busy = true;
 
   // X-Accel-Buffering stops proxies holding events back; the comment line keeps the stream open while Claude thinks.
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   const ping = setInterval(() => res.write(": still thinking\n\n"), 15_000);
-  const emit = (e: ArenaEvent) => res.write(`data: ${JSON.stringify(e)}\n\n`);
+  const emit = (e: ArenaEvent) => {
+    if (run.live) recordEvent(run.id, e);
+    res.write(`data: ${JSON.stringify(e)}\n\n`);
+  };
   try {
     await playRound(run, emit);
   } catch (err) {
     res.write(`data: ${JSON.stringify({ type: "error", message: (err as Error).message })}\n\n`);
   } finally {
     clearInterval(ping);
+    run.busy = false;
   }
   res.end();
 });

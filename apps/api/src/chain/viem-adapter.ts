@@ -160,8 +160,8 @@ export class ViemAdapter implements ChainAdapter {
 }
 
 /** Builds the adapter for CHAIN_MODE=testnet (Base Sepolia) or CHAIN_MODE=local (Hardhat node). */
-export function createViemAdapter(strict: boolean): ViemAdapter {
-  const local = process.env.CHAIN_MODE === "local";
+export function createViemAdapter(strict: boolean, opts: { local?: boolean } = {}): ViemAdapter {
+  const local = opts.local ?? process.env.CHAIN_MODE === "local";
   const address = (strict ? process.env.REGISTRY_PROTECTED_ADDRESS : process.env.REGISTRY_UNPROTECTED_ADDRESS) as Address | undefined;
   // MetaMask exports keys without the 0x prefix; accept both.
   const rawKey = process.env.OPERATOR_PRIVATE_KEY?.trim();

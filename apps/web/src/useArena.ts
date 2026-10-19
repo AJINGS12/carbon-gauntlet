@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  createRun, fetchArena, playRoundStream, startLive, API, MODES,
-  type ArenaEvent, type ArenaInfo, type Attestation, type Decision, type LedgerRow, type Metrics, type Mode, type PublicProject,
+  createRun, fetchArena, fetchRecord, fetchRecordText, playRoundStream, startLive, API, MODES,
+  type ArenaEvent, type ArenaInfo, type Attestation, type Decision, type LedgerRow, type MarketStart, type Metrics, type Mode, type PublicProject,
+  type RecordBody, type RecordView,
 } from "./api";
 
 export interface ActionResult { accepted: boolean; attack: boolean; reason?: string; txHash?: string; network?: string }
@@ -87,6 +88,26 @@ function turns(events: ArenaEvent[]): { prelude: ArenaEvent[]; turns: ArenaEvent
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A saved run's events, one list per round, so playback can hand them out a round at a time. */
+function byRound(events: ArenaEvent[]): ArenaEvent[][] {
+  const out: ArenaEvent[][] = [];
+  for (const e of events) {
+    if (e.type === "round_started" || !out.length) out.push([]);
+    out[out.length - 1].push(e);
+  }
+  return out;
+}
+
+const fromStart = (start: MarketStart, runIds: Record<Mode, string>): Record<Mode, Market> => ({
+  UNPROTECTED: { ...emptyMarket(), runId: runIds.UNPROTECTED, metrics: start.UNPROTECTED.metrics, ledger: start.UNPROTECTED.ledger },
+  PROTECTED: { ...emptyMarket(), runId: runIds.PROTECTED, metrics: start.PROTECTED.metrics, ledger: start.PROTECTED.ledger },
+});
+
+const setUrl = (recordId: string | null) => {
+  const url = recordId ? `/arena?run=${encodeURIComponent(recordId)}` : "/arena";
+  if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, "", url);
+};
+
 /** The turn on stage: one agent, its move in each market, revealed in two phases. */
 export interface Turn {
   round: number;
@@ -114,6 +135,16 @@ export function useArena() {
   const [speed, setSpeed] = useState(1);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [live, setLive] = useState(false);
+  /** The live run being played or watched: its saved record (link, fingerprint, on-chain anchor). */
+  const [recordId, setRecordId] = useState<string | null>(null);
+  const [record, setRecord] = useState<RecordView | null>(null);
+  /** Watching a saved live run: its events, by round. Null for the featured recording and for runs in progress. */
+  const savedRef = useRef<{ body: RecordBody; rounds: Record<Mode, ArenaEvent[][]> } | null>(null);
+  const [saved, setSaved] = useState<RecordBody | null>(null);
+  const recordIdRef = useRef<string | null>(null);
+  recordIdRef.current = recordId;
+  const liveRef = useRef(false);
+  liveRef.current = live;
   const speedRef = useRef(1);
   const pauseRef = useRef(false);
   const busyRef = useRef(false);
@@ -127,18 +158,76 @@ export function useArena() {
     busyRef.current = false;
   };
 
-  const reset = useCallback(async () => {
+  const stop = async () => {
     pauseRef.current = true;
     while (busyRef.current) await sleep(50);
     pauseRef.current = false;
+  };
+
+  /** Opens a live run by its link: a saved run plays back from its record; one still in progress picks up where it is. */
+  const openRecord = useCallback(async (id: string) => {
+    await stop();
     setError(null);
     setStatus("loading");
+    setTurn(null);
+    setUrl(id);
+    try {
+      const arena = info ?? (await fetchArena());
+      setInfo(arena);
+      let view = await fetchRecord(id);
+      // A round is being played right now (e.g. the page was refreshed mid-round): wait for it to land.
+      for (let i = 0; view.status === "playing" && view.busy && i < 120; i++) {
+        await sleep(2500);
+        view = await fetchRecord(id);
+      }
+      setRecordId(id);
+      setRecord(view);
+      if (view.status === "playing") {
+        savedRef.current = null;
+        setSaved(null);
+        const start = fromStart(view.body.start, view.runIds);
+        setMarkets({
+          UNPROTECTED: view.body.events.UNPROTECTED.reduce(apply, start.UNPROTECTED),
+          PROTECTED: view.body.events.PROTECTED.reduce(apply, start.PROTECTED),
+        });
+        setLive(true);
+        setStatus(view.round > 0 ? "paused" : "ready");
+        return;
+      }
+      const body = JSON.parse(await fetchRecordText(id)) as RecordBody;
+      savedRef.current = { body, rounds: { UNPROTECTED: byRound(body.events.UNPROTECTED), PROTECTED: byRound(body.events.PROTECTED) } };
+      setSaved(body);
+      setLive(false);
+      setMarkets(fromStart(body.start, { UNPROTECTED: "saved", PROTECTED: "saved" }));
+      setStatus("ready");
+    } catch (err) {
+      fail(new Error(`Couldn't open that run. ${err instanceof Error ? err.message : ""}`));
+    }
+  }, [info]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Back to the start: of the saved run being watched, or of the featured recorded run. */
+  const reset = useCallback(async () => {
+    const watching = savedRef.current;
+    if (watching) {
+      await stop();
+      setTurn(null);
+      setError(null);
+      setMarkets(fromStart(watching.body.start, { UNPROTECTED: "saved", PROTECTED: "saved" }));
+      setStatus("ready");
+      return;
+    }
+    await stop();
+    setError(null);
+    setStatus("loading");
+    setUrl(null);
     try {
       const arena = info ?? (await fetchArena());
       setInfo(arena);
       const [u, p] = await Promise.all(MODES.map((mode) => createRun(mode)));
       setTurn(null);
       setLive(false);
+      setRecordId(null);
+      setRecord(null);
       setMarkets({
         UNPROTECTED: { ...emptyMarket(), runId: u.runId, metrics: u.metrics, ledger: u.ledger },
         PROTECTED: { ...emptyMarket(), runId: p.runId, metrics: p.metrics, ledger: p.ledger },
@@ -149,12 +238,31 @@ export function useArena() {
     }
   }, [info]);
 
+  /** Leaves a saved run and goes back to the featured recorded run. */
+  const backToRecording = useCallback(async () => {
+    savedRef.current = null;
+    setSaved(null);
+    await reset();
+  }, [reset]);
+
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return; // React's dev mode runs effects twice; set up the markets once
     started.current = true;
-    void reset();
+    const id = new URLSearchParams(window.location.search).get("run");
+    void (id ? openRecord(id) : reset());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** After a live run ends, follow its record until it's saved and anchored (or anchoring gives up). */
+  const followRecord = async (id: string) => {
+    for (let i = 0; i < 60; i++) {
+      await sleep(i === 0 ? 800 : 2500);
+      const view = await fetchRecord(id).catch(() => null);
+      if (!view || recordIdRef.current !== id) return;
+      setRecord(view);
+      if (view.status !== "playing" && view.status !== "saving" && view.anchor !== "pending") return;
+    }
+  };
 
   /**
    * Plays the next round in both markets and reveals it turn by turn, side by side.
@@ -170,8 +278,12 @@ export function useArena() {
     const done: Record<Mode, boolean> = { UNPROTECTED: false, PROTECTED: false };
     let failure: Error | null = null;
     let wake = () => {};
+    const watching = savedRef.current;
+    const source = (mode: Mode, onEvent: (e: ArenaEvent) => void) => watching
+      ? (async () => { for (const e of watching.rounds[mode][current[mode].round] ?? []) onEvent(e); })()
+      : playRoundStream(current[mode].runId!, onEvent);
     for (const mode of MODES)
-      playRoundStream(current[mode].runId!, (e) => { buf[mode].push(e); wake(); })
+      source(mode, (e) => { buf[mode].push(e); wake(); })
         .catch((err) => { failure = err instanceof Error ? err : new Error(String(err)); })
         .finally(() => { done[mode] = true; wake(); });
     const failed = () => failure ?? (() => { const e = [...buf.UNPROTECTED, ...buf.PROTECTED].find((x) => x.type === "error"); return e?.type === "error" ? new Error(e.message) : null; })();
@@ -219,6 +331,8 @@ export function useArena() {
     setMarkets({ UNPROTECTED: mu, PROTECTED: mp });
     const round = p.end.find((e) => e.type === "round_finished");
     if (round?.type === "round_finished" && round.round >= max) {
+      if (watching) return false;
+      if (liveRef.current && recordIdRef.current) void followRecord(recordIdRef.current);
       // The anchor transaction is only known once the run finishes.
       const anchors = await Promise.all(MODES.map((mode) => fetch(`${API}/runs/${current[mode].runId}`).then((r) => r.json()).then((d) => d.anchorTx as string | undefined).catch(() => undefined)));
       setMarkets((m) => ({ UNPROTECTED: { ...m.UNPROTECTED, anchorTx: anchors[0] }, PROTECTED: { ...m.PROTECTED, anchorTx: anchors[1] } }));
@@ -249,8 +363,13 @@ export function useArena() {
     if (busyRef.current) return;
     setError(null);
     const started = await startLive(code); // throws with the server's message (wrong code, used up, ...)
+    savedRef.current = null;
+    setSaved(null);
     setTurn(null);
     setLive(true);
+    setRecordId(started.recordId);
+    setRecord(null);
+    setUrl(started.recordId); // a refresh comes back to this run
     setInfo((i) => (i ? { ...i, live: { available: true, remainingToday: started.remainingToday } } : i));
     setMarkets({
       UNPROTECTED: { ...emptyMarket(), runId: started.UNPROTECTED.runId, metrics: started.UNPROTECTED.metrics, ledger: started.UNPROTECTED.ledger },
@@ -261,6 +380,7 @@ export function useArena() {
 
   return {
     info, markets, status, error, speed, setSpeed, turn, live, goLive,
+    recordId, record, saved, openRecord, backToRecording,
     play: () => run(false),
     step: () => run(true),
     pause: () => { pauseRef.current = true; },

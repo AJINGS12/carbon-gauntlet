@@ -6,13 +6,14 @@ import { Stage } from "./Stage";
 import { SiteMap } from "./SiteMap";
 import { LedgerTable, Results } from "./Results";
 import { ArenaTabs } from "./ArenaTabs";
+import { PastRuns } from "./Records";
 
 const SPEEDS = [1, 2, 4];
 /** Shown on the stage while the API is still loading the real roles. */
 const CAST = ["honest-dev", "opportunist-dev", "broker", "coal-nation"].map((id) => ({ id, name: id, honest: id === "honest-dev", country: "", goal: "", portfolio: [] }));
 
 export default function Arena({ go }: { go: (path: string) => void }) {
-  const { info, markets, status, error, speed, setSpeed, turn, live, goLive, play, step, pause, reset } = useArena();
+  const { info, markets, status, error, speed, setSpeed, turn, live, goLive, play, step, pause, reset, recordId, record, saved, openRecord, backToRecording } = useArena();
   const [liveOpen, setLiveOpen] = useState(false);
   const [code, setCode] = useState("");
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -42,6 +43,9 @@ export default function Arena({ go }: { go: (path: string) => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const rec = info?.deployments.PROTECTED.recording;
   const liveTurn = playing || status === "paused" ? turn : null;
+  // A finished live run plays back again from its saved record.
+  const again = () => void (recordId && !saved ? openRecord(recordId) : reset());
+  const open = (id: string) => { window.scrollTo({ top: 0, behavior: "smooth" }); void openRecord(id); };
 
   // Bring the stage into view when playback starts, if it's below the fold.
   const toStage = () => {
@@ -64,7 +68,7 @@ export default function Arena({ go }: { go: (path: string) => void }) {
           {playing ? (
             <button type="button" className="primary" onClick={pause}>Pause</button>
           ) : status === "finished" ? (
-            <button type="button" className="primary" onClick={() => void reset()}>Watch again</button>
+            <button type="button" className="primary" onClick={again}>Watch again</button>
           ) : (
             <button type="button" className="primary" onClick={() => { toStage(); void play(); }} disabled={busy}>
               {round === 0 ? "Run the gauntlet" : "Continue"}
@@ -81,11 +85,17 @@ export default function Arena({ go }: { go: (path: string) => void }) {
         {status === "error" && <p className="status error" role="alert">{error}</p>}
         {status === "loading" && <p className="status" role="status">Setting up both markets…</p>}
         {live && (status === "ready" || status === "playing" || status === "paused") && (
-          <p className="status">Live run: Claude is deciding every move right now, so each turn takes a few seconds longer.</p>
+          <p className="status">Live run: Claude is deciding every move right now, so each turn takes a few seconds longer. It's being recorded: the link in your address bar brings you back to it.</p>
         )}
-        {!live && rec && status === "ready" && (
+        {saved && (status === "ready" || status === "paused") && (
           <p className="status">
-            A recorded live run: every agent move and verifier check was made by Claude. Replaying it makes no AI calls.
+            A saved live run from {new Date(saved.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}: every move was made by Claude. Watching it again makes no AI calls.{" "}
+            <button type="button" className="link" onClick={() => void backToRecording()}>Back to the featured run</button>
+          </p>
+        )}
+        {!live && !saved && (rec || liveInfo?.available) && status === "ready" && (
+          <p className="status">
+            {rec ? "A recorded live run: every agent move and verifier check was made by Claude. Replaying it makes no AI calls." : "Scripted agents and rule checks."}
             {liveInfo?.available && !liveOpen && (
               <> <button type="button" className="link" onClick={() => setLiveOpen(true)}>Run it live instead</button></>
             )}
@@ -116,7 +126,7 @@ export default function Arena({ go }: { go: (path: string) => void }) {
         <Scoreboard mode="PROTECTED" market={markets.PROTECTED} />
       </div>
 
-      {info && status === "finished" && <Results info={info} markets={markets} live={live} />}
+      {info && status === "finished" && <Results info={info} markets={markets} live={live || !!saved} playedAt={saved?.createdAt} model={saved?.model} record={recordId ? record : undefined} />}
 
       {info && round > 0 && (
         <section className="moves" aria-labelledby="h-moves">
@@ -131,6 +141,8 @@ export default function Arena({ go }: { go: (path: string) => void }) {
           </div>
         </section>
       )}
+
+      {info && <PastRuns refresh={record?.status === "saved" ? record.anchor : null} current={recordId} onOpen={open} />}
 
       {info && (
         <section className="explore" aria-labelledby="h-explore">

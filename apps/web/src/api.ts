@@ -56,6 +56,8 @@ export interface ArenaInfo {
   result: Record<Mode, { metrics: Metrics; ledger: LedgerRow[] }> | null;
   /** Live runs (Claude plays now) need an access code and are capped per day. */
   live?: { available: boolean; remainingToday: number };
+  /** Live runs are saved (persistent: survives restarts) and their fingerprint anchored on-chain. */
+  records?: { persistent: boolean; anchored: boolean };
 }
 
 export type Action =
@@ -138,6 +140,7 @@ export async function playRoundStream(runId: string, onEvent: (e: ArenaEvent) =>
 
 export interface LiveStart {
   maxRounds: number;
+  recordId: string;
   UNPROTECTED: { runId: string; metrics: Metrics; ledger: LedgerRow[] };
   PROTECTED: { runId: string; metrics: Metrics; ledger: LedgerRow[] };
   remainingToday: number;
@@ -157,3 +160,53 @@ export interface TrickRequest { trick: TrickId; copyFrom?: string; shiftKm?: num
 export const tryTrick = (req: TrickRequest) =>
   fetch(`${API}/sandbox`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) })
     .then((r) => json<Record<Mode, ArenaEvent[]>>(r));
+
+// ---------------------------------------------------------------- saved live runs
+
+export type MarketStart = Record<Mode, { metrics: Metrics; ledger: LedgerRow[] }>;
+export interface RecordBody { id: string; createdAt: string; model: string; start: MarketStart; events: Record<Mode, ArenaEvent[]> }
+export interface RecordMeta {
+  id: string;
+  createdAt: string;
+  model: string;
+  metrics: Record<Mode, Metrics>;
+  digest: string;
+  anchorTx?: string;
+  registry?: string;
+}
+export type AnchorState = "off" | "pending" | "done" | "failed";
+export type RecordView =
+  | { status: "playing"; runIds: Record<Mode, string>; round: number; busy: boolean; body: RecordBody }
+  | ({ id: string; status: "saving" | "saved" | "failed"; anchor: AnchorState } & Partial<RecordMeta>);
+
+export const fetchRecords = () => fetch(`${API}/records`).then((r) => json<{ records: RecordMeta[] }>(r)).then((d) => d.records);
+export const fetchRecord = (id: string) => fetch(`${API}/records/${encodeURIComponent(id)}`).then((r) => json<RecordView>(r));
+/** The exact stored text of a saved run: what its fingerprint was computed from. */
+export async function fetchRecordText(id: string): Promise<string> {
+  const res = await fetch(`${API}/records/${encodeURIComponent(id)}/body`);
+  if (!res.ok) await json(res);
+  return res.text();
+}
+
+export async function sha256Hex(text: string): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return "0x" + [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export const RPC_URL = import.meta.env.VITE_RPC_URL ?? "https://sepolia.base.org";
+/** IDs up to 31 characters are stored on-chain as readable text, right-padded to 32 bytes. */
+const idToBytes32 = (id: string) => [...new TextEncoder().encode(id)].map((b) => b.toString(16).padStart(2, "0")).join("").padEnd(64, "0");
+/** Reads registry.runAnchors(id) straight from the chain, without going through our API. */
+export async function readAnchor(registry: string, id: string): Promise<string | null> {
+  const res = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: registry, data: "0x050db52f" + idToBytes32(id) }, "latest"] }),
+  });
+  const out = (await res.json()) as { result?: string; error?: { message: string } };
+  if (out.error) throw new Error(out.error.message);
+  return out.result && !/^0x0*$/.test(out.result) ? out.result.toLowerCase() : null;
+}
+
+/** Link to a saved run in the Arena. */
+export const recordLink = (id: string) => `${window.location.origin}/arena?run=${encodeURIComponent(id)}`;

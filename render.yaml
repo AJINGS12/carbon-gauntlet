@@ -26,3 +26,17 @@ services:
         sync: false   # optional: leave empty to keep the site replay-only
       - key: LIVE_RUN_CODE
         sync: false   # optional: the access code judges type to start a live run (6+ characters)
+      # Saved live runs (docs/records.sql). Without these, runs are kept in memory until a restart.
+      - key: SUPABASE_URL
+        sync: false   # https://<project>.supabase.co
+      - key: SUPABASE_SECRET_KEY
+        sync: false   # sb_secret_... (server only, never in the frontend)
+      # Anchor each saved run's fingerprint on Base Sepolia (one transaction per run, test ETH only).
+      - key: ANCHOR_RUNS
+        value: "true"
+      - key: REGISTRY_PROTECTED_ADDRESS
+        value: "0x0abBb146d782bE58555cC2b63cFe0e14FD234c9F"
+      - key: RPC_URL
+        value: https://sepolia.base.org
+      - key: OPERATOR_PRIVATE_KEY
+        sync: false   # the TEST wallet that deployed the registries; anchoring is skipped while empty

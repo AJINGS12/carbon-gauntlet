@@ -1,4 +1,5 @@
-import type { ArenaInfo, LedgerRow, Mode } from "./api";
+import type { ArenaInfo, LedgerRow, Mode, RecordView } from "./api";
+import { RecordProof } from "./Records";
 import { addressUrl, txUrl } from "./api";
 import type { Market } from "./useArena";
 import { MARKET } from "./Market";
@@ -33,7 +34,13 @@ export function LedgerTable({ ledger }: { ledger: LedgerRow[] }) {
 
 const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-export function Results({ info, markets, live = false }: { info: ArenaInfo; markets: Record<Mode, Market>; live?: boolean }) {
+export function Results({ info, markets, live = false, playedAt, model, record }: {
+  info: ArenaInfo; markets: Record<Mode, Market>; live?: boolean;
+  /** A saved live run being watched again: when it was played, and by which models. */
+  playedAt?: string; model?: string;
+  /** The live run's record (undefined when this isn't a live run). */
+  record?: RecordView | null;
+}) {
   const u = markets.UNPROTECTED.metrics, p = markets.PROTECTED.metrics;
   if (!u || !p) return null;
   const issued = markets.UNPROTECTED.ledger.reduce((t, b) => t + b.quantity, 0);
@@ -60,12 +67,14 @@ export function Results({ info, markets, live = false }: { info: ArenaInfo; mark
         <tbody>{rows.map(([label, f]) => <tr key={label}><th scope="row">{label}</th><td>{f(u)}</td><td>{f(p)}</td></tr>)}</tbody>
       </table>
 
+      {record !== undefined && <RecordProof record={record} persistent={info.records?.persistent ?? false} />}
+
       <div className="proof">
-        <h3>Check it yourself</h3>
+        {record === undefined && <h3>Check it yourself</h3>}
         <ul>
           {(["UNPROTECTED", "PROTECTED"] as Mode[]).map((mode) => {
             const chain = info.deployments[mode].chain;
-            const anchor = chain ? txUrl(markets[mode].anchorTx ?? chain.anchorTx) : undefined;
+            const anchor = chain ? txUrl(live ? markets[mode].anchorTx : markets[mode].anchorTx ?? chain.anchorTx) : undefined;
             return chain ? (
               <li key={mode}>
                 {MARKET[mode].title}: <a href={addressUrl(chain.registry)} target="_blank" rel="noreferrer">registry contract</a>
@@ -75,7 +84,7 @@ export function Results({ info, markets, live = false }: { info: ArenaInfo; mark
           })}
         </ul>
         <p><a href="/try">Now try to cheat it yourself</a></p>
-        {live ? <p className="fine">{fellBack ? `Played live just now. The model was unavailable for ${fellBack} move${fellBack === 1 ? "" : "s"}, so scripted moves stood in.` : "Played live just now: Claude made every move."}</p> : rec && <p className="fine">Recorded live on {date(rec.recordedAt)} with {modelText(rec.model)}.</p>}
+        {playedAt && model ? <p className="fine">Played live on {date(playedAt)} with {modelText(model)}.</p> : live ? <p className="fine">{fellBack ? `Played live just now. The model was unavailable for ${fellBack} move${fellBack === 1 ? "" : "s"}, so scripted moves stood in.` : "Played live just now: Claude made every move."}</p> : rec && <p className="fine">Recorded live on {date(rec.recordedAt)} with {modelText(rec.model)}.</p>}
       </div>
     </section>
   );

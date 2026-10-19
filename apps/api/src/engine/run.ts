@@ -48,6 +48,7 @@ export interface Run {
   replay?: RunRecording | null;                // recorded decisions being replayed
   sandbox?: boolean;                           // "try to cheat it": in-memory ledger, rule checks only, never stored
   live?: boolean;                              // a judge's live run: Claude decides every move, even in demo mode
+  busy?: boolean;                              // a round is being played right now (one at a time)
 }
 
 const runs = new Map<string, Run>();

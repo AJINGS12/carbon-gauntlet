@@ -382,6 +382,46 @@ a.button.beckon:hover { background: var(--ink); border-color: var(--ink); color:
 .results a:hover { color: #fff; }
 .results .fine { color: var(--stage-quiet); }
 
+/* A live run's record: permanent link, fingerprint, on-chain anchor, and a check anyone can run */
+.record-proof { margin-top: 26px; padding: 20px 22px; border-radius: 10px; background: var(--stage-2); border: 1px solid #2c3d34; }
+.record-proof h3 { font-size: 20px; font-weight: 800; font-stretch: 75%; margin: 0 0 12px; }
+.record-line { margin: 0; color: var(--stage-quiet); }
+.record-line.pending::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 9px; border-radius: 50%; background: var(--stage-green); animation: blink 1.2s ease-in-out infinite; }
+.record-link { display: flex; gap: 8px; }
+.record-link input { flex: 1; min-width: 0; font: 500 14px var(--body); color: var(--stage-ink); background: var(--stage); border: 1px solid #2c3d34; border-radius: 6px; padding: 9px 11px; }
+.record-proof button { background: transparent; color: var(--stage-ink); border-color: #4a5f53; white-space: nowrap; }
+.record-proof button:hover:not(:disabled) { background: var(--stage-ink); color: var(--stage); }
+.record-facts { display: flex; flex-wrap: wrap; gap: 8px 32px; margin: 14px 0 0; }
+.record-facts div { display: flex; gap: 10px; align-items: baseline; }
+.record-facts dt { color: var(--stage-quiet); font-size: 14px; }
+.record-facts dd { margin: 0; }
+.record-facts code { font: 500 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.record-verify { margin-top: 14px; }
+.verify-checks { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.verify-checks .ok { color: var(--stage-green); }
+.verify-checks .bad { color: var(--stage-red); }
+
+/* Past live runs */
+.past-runs { margin-top: 44px; }
+.past-runs ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.past-runs li { display: flex; align-items: center; gap: 12px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding-right: 16px; }
+.past-runs li.on { border-color: var(--ink); box-shadow: inset 4px 0 0 var(--green); }
+.past-open { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 4px 20px; text-align: left; background: none; border: 0; padding: 14px 16px; font-weight: 400; }
+.past-open:hover:not(:disabled) { background: none; color: inherit; }
+.past-open:hover .past-when { text-decoration: underline; }
+.past-when { font-weight: 700; }
+.past-scores { display: flex; gap: 14px; font-weight: 600; }
+.past-scores .bad { color: var(--red); }
+.past-scores .good { color: var(--green); }
+.past-model { color: var(--ink-2); font-size: 14px; }
+.past-proof { white-space: nowrap; font-size: 14px; font-weight: 600; }
+@media (max-width: 600px) {
+  .record-proof { padding: 16px; }
+  .record-link { flex-direction: column; }
+  .past-runs li { flex-direction: column; align-items: stretch; padding: 0 0 12px; gap: 0; }
+  .past-proof { padding: 0 16px; }
+}
+
 /* ---------------------------------------------------------------- arena: map + ledger */
 .explore .seg-toggle { margin: 14px 0 10px; }
 .detail-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }

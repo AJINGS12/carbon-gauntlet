@@ -47,7 +47,8 @@ Recorded live run (16 Oct 2026; Sonnet attackers, Haiku verifier), replayed on B
 | Page | What it does | Cost |
 | --- | --- | --- |
 | `/arena` | Replays the recorded live run: Claude's agents and verifier, every move linked to its Base Sepolia transaction | Free, no model calls |
-| `/arena`, live | Judges with the access code run it live: Claude decides every move now (Haiku, capped per day) | Model credit |
+| `/arena`, live | Judges with the access code run it live: Claude decides every move now (Haiku, capped per day). Every live run is saved with its own link, and its fingerprint is anchored on Base Sepolia | Model credit + one testnet tx |
+| `/arena?run=…` | Watch a saved live run again, and check in your browser that it matches its on-chain fingerprint | Free |
 | `/try` | Try to cheat it yourself: pick one of six tricks and send it through both markets | Free, rule checks only |
 
 ## Repo layout
@@ -88,7 +89,7 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 | --- | --- | --- |
 | Frontend | Vercel | Root directory `apps/web`; set `VITE_API_URL` to the Render URL |
 | API | Render | Uses `render.yaml`; set `CORS_ORIGIN` to the Vercel URL. Ping `/health` every 10 min (cron-job.org) so it doesn't sleep |
-| Database | Neon Postgres | Not wired yet; runs are in memory for now |
+| Database | Supabase | Saved live runs: run [docs/records.sql](docs/records.sql) once, then set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` on Render. For on-chain fingerprints also set `ANCHOR_RUNS=true` and `OPERATOR_PRIVATE_KEY` (test wallet) |
 | Contract | Base Sepolia | `npm run contracts:deploy`, then `npm run chain:check -w apps/api` ([docs/blockchain.md](docs/blockchain.md)) |
 
 ## Status
@@ -98,14 +99,14 @@ npm run contracts:deploy           # Base Sepolia; needs OPERATOR_PRIVATE_KEY + 
 | CreditRegistry contract + 8 tests (incl. evidence squatting), **live on Base Sepolia**; contract matches the mock verdict-for-verdict; every demo action is a real transaction ([docs/blockchain.md](docs/blockchain.md)) | |
 | Verifier agent: Claude tool-use loop, guardrails, prompt-injection defence, recorded traces, 12/12 on live eval, 21 tests ([docs/verifier.md](docs/verifier.md)) | |
 | AI agents: Claude decides each move, invents clone attacks, replans after rejection; objective attack classification; recorded runs; 10 tests ([docs/agents.md](docs/agents.md)) | |
-| Engine, metrics, run anchoring, SSE API | Deploy: Vercel + Render |
-| Arena: both markets played side by side, agent cards with live plans, tonnage bars, the verifier's investigation for every claim, site map with clones, batch ledger, results with on-chain proof | Demo video, submission pack |
+| Engine, metrics, run anchoring, SSE API; live runs saved (Supabase) with a permanent link, fingerprint anchored on-chain and checkable in the browser; a refreshed page picks a live run back up | |
+| Arena: both markets played side by side, agent cards with live plans, tonnage bars, the verifier's investigation for every claim, site map with clones, batch ledger, results with on-chain proof, past live runs; deployed on Vercel + Render | Demo video, submission pack |
 
 ## Tests
 
 ```bash
 npm run contracts:test                            # contract rules, both modes
-npm test -w apps/api                              # verifier, agents, simulation, chain isolation (55 tests)
+npm test -w apps/api                              # verifier, agents, simulation, chain isolation, saved runs (61 tests)
 npm run eval:verifier -w apps/api                 # 12 seed projects scored: frauds caught, honest passed
 npm run sim -w apps/api                           # full simulation, both modes, pass/fail scorecard
 npm run chain:check -w apps/api                   # deployed contract gives identical verdicts to the mock
